@@ -7,7 +7,7 @@ mod runner;
 
 fn main() -> cosmic::iced::Result {
     // stderr is forwarded by cosmic-panel to the user journal:
-    // `journalctl --user -f -t cosmic-applet-commands`
+    // `make logs` (journalctl -t cosmic-panel, lines prefixed with the app ID)
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()

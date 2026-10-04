@@ -81,5 +81,6 @@ clean:
 reload-panel:
 	killall cosmic-panel
 
+# cosmic-panel relays applet stderr under its own identifier, prefixed with the app ID.
 logs:
-	journalctl --user -f -t $(NAME)
+	journalctl --user -b -f -t cosmic-panel | grep --line-buffered '$(APPID):'

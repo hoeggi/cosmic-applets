@@ -104,10 +104,10 @@ pub struct Config { pub commands: Vec<CommandEntry>, pub terminal: String /* def
    - List mode gets a collapsible "Recent runs" section at the bottom. Rows show time, name and status; clicking one expands its output.
 
 ### Applet logs (diagnostics)
-- **Where logs go:** cosmic-panel launches applets with stdout/stderr piped to the panel, which forwards them to the **user journal** with `SYSLOG_IDENTIFIER=<binary name>`. This was verified on this machine: cosmic-applet-status-area lines appear in `journalctl --user` under its own identifier.
+- **Where logs go:** cosmic-panel launches applets with stdout/stderr piped to the panel, which forwards them to the **user journal** under the `cosmic-panel` identifier, each line prefixed with the app ID (`at.hoeggi.CosmicAppletCommands: …`). Verified on this machine once the applet ran in the panel.
 - **Logging setup:** Use `tracing` + `tracing-subscriber` (env-filter) writing to stderr, with the default level `info` overridable via `RUST_LOG`.
 - **Viewing:**
-  - Live logs: `journalctl --user -f -t cosmic-applet-commands`.
+  - Live logs: `journalctl --user -f -t cosmic-panel | grep at.hoeggi.CosmicAppletCommands:`.
   - With `make run`, logs print straight to the terminal.
   - A `make logs` target wraps the journalctl call.
 - **What gets logged:** spawn, exit code and duration of each run, config load/write errors, and notification failures. Command output itself goes only to the run history, not the journal.
@@ -162,7 +162,7 @@ pub struct Config { pub commands: Vec<CommandEntry>, pub terminal: String /* def
     - `shell`: an interactive shell in the container.
     - `clean`: removes the build output.
     - `reload-panel`: `killall cosmic-panel`.
-    - `logs`: `journalctl --user -f -t cosmic-applet-commands`.
+    - `logs`: follow `cosmic-panel` in the user journal, filtered to the app ID.
     - `image`: force-rebuild the builder image for the current `ENGINE`.
   - `.PHONY` covers all the non-file targets. `.image.stamp` and `.cache/` go in `.gitignore`.
 - **Running and installing on the host:**
