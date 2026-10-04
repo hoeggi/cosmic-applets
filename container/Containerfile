@@ -1,0 +1,20 @@
+# Build toolchain for the COSMIC commands applet.
+# ubuntu:24.04 matches the Pop!_OS 24.04 host glibc, so binaries run natively.
+FROM docker.io/library/ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      ca-certificates curl git build-essential pkg-config cmake \
+      libxkbcommon-dev libwayland-dev libssl-dev \
+ && rm -rf /var/lib/apt/lists/*
+
+# System-wide, world-readable Rust so the container can run as any host UID.
+ENV RUSTUP_HOME=/opt/rust/rustup \
+    CARGO_HOME=/opt/rust/cargo \
+    PATH=/opt/rust/cargo/bin:$PATH
+RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path \
+      --profile minimal --default-toolchain stable --component clippy,rustfmt \
+ && cargo install --locked just cargo-generate \
+ && rm -rf "$CARGO_HOME/registry" "$CARGO_HOME/git" \
+ && chmod -R a+rX /opt/rust
