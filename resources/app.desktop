@@ -2,8 +2,8 @@
 Name=Cosmic Applet Commands
 Comment=Run configurable commands from the COSMIC panel
 Type=Application
-Icon=at.hoeggi.CosmicAppletCommands
-Exec=cosmic-applet-commands %F
+Icon=utilities-terminal-symbolic
+Exec=cosmic-applet-commands
 Terminal=false
 StartupNotify=true
 Categories=COSMIC
@@ -11,4 +11,6 @@ Keywords=COSMIC
 NoDisplay=true
 X-CosmicApplet=true
 X-CosmicHoverPopup=Auto
+X-CosmicShrinkable=true
+X-OverflowPriority=10
 MimeType=
