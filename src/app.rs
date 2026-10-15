@@ -445,7 +445,7 @@ impl AppModel {
                 }
                 Some(RunState::Done(outcome)) => {
                     let status = match outcome.code {
-                        Some(0) => format!("{:.1} s", outcome.duration.as_secs_f32()),
+                        Some(0) => runner::format_duration(outcome.duration),
                         Some(code) => fl!("exit-code", code = code),
                         None => fl!("killed"),
                     };
@@ -506,6 +506,7 @@ impl AppModel {
                     let label = widget::Row::new()
                         .push(text::caption(run.time()))
                         .push(text::body(&run.name).width(Length::Fill))
+                        .push(text::caption(run.duration()))
                         .push(status_glyph(run.success()))
                         .spacing(12)
                         .align_y(Alignment::Center);

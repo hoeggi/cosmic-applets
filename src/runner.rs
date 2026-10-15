@@ -29,6 +29,16 @@ impl RunOutcome {
     }
 }
 
+/// Human-readable run time: `0.3 s`, `1m 12s`, `2h 05m`.
+pub fn format_duration(duration: Duration) -> String {
+    let secs = duration.as_secs();
+    match secs {
+        0..60 => format!("{:.1} s", duration.as_secs_f32()),
+        60..3600 => format!("{}m {:02}s", secs / 60, secs % 60),
+        _ => format!("{}h {:02}m", secs / 3600, secs % 3600 / 60),
+    }
+}
+
 /// Runs `command` through `sh -c`, capturing stdout followed by stderr.
 pub async fn run_captured(command: String) -> RunOutcome {
     let started = Instant::now();
@@ -88,7 +98,7 @@ fn truncate_tail(s: &str) -> String {
 /// Sends a desktop notification for a finished run.
 pub async fn notify(name: String, outcome: RunOutcome) {
     let summary = match outcome.code {
-        Some(0) => format!("✓ {name} ({:.1} s)", outcome.duration.as_secs_f32()),
+        Some(0) => format!("✓ {name} ({})", format_duration(outcome.duration)),
         Some(code) => format!("✗ {name} (exit {code})"),
         None => format!("✗ {name} (killed)"),
     };
@@ -143,6 +153,10 @@ impl HistoryEntry {
 
     pub fn success(&self) -> bool {
         self.exit_code == Some(0)
+    }
+
+    pub fn duration(&self) -> String {
+        format_duration(Duration::from_millis(self.duration_ms))
     }
 
     /// Local wall-clock time, `HH:MM`.
