@@ -4,6 +4,10 @@
 #   make build                 # podman (default)
 #   make build ENGINE=docker   # docker
 
+ifeq ($(shell id -u),0)
+  $(error Run make as your normal user; it calls sudo itself where needed)
+endif
+
 ENGINE  ?= podman
 IMAGE   := cosmic-applet-builder
 NAME    := cosmic-applet-commands
@@ -63,8 +67,9 @@ stage: build
 	rm -rf $(STAGE)
 	$(RUN) just rootdir=/src/$(STAGE) prefix=$(PREFIX) install
 
+# --remove-destination replaces the binary even while the panel is running it.
 install: stage
-	sudo cp -r $(STAGE)$(PREFIX)/. $(PREFIX)/
+	sudo cp -r --remove-destination $(STAGE)$(PREFIX)/. $(PREFIX)/
 
 uninstall:
 	sudo rm -f $(PREFIX)/bin/$(NAME) \
