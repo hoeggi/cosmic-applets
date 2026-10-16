@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: MPL-2.0
+
+mod app;
+mod config;
+mod i18n;
+mod keyring;
+mod model;
+mod ring;
+mod rpc;
+
+fn main() -> cosmic::iced::Result {
+    cosmic_applet_common::init_logging("cosmic_applet_transmission");
+
+    // Get the system's preferred languages.
+    let requested_languages = i18n_embed::DesktopLanguageRequester::requested_languages();
+
+    // Enable localizations to be applied.
+    i18n::init(&requested_languages);
+
+    // Starts the applet's event loop with `()` as the application's flags.
+    cosmic::applet::run::<app::AppModel>(())
+}

@@ -1,0 +1,44 @@
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "torrents": [
+      {
+        "id": 11, "name": "ubuntu-26.04-desktop-amd64.iso", "status": 4,
+        "percent_done": 0.64, "rate_download": 2100000, "rate_upload": 80000, "eta": 720,
+        "upload_ratio": 0.03, "error": 0, "error_string": "",
+        "size_when_done": 4600000000, "left_until_done": 1656000000
+      },
+      {
+        "id": 12, "name": "fedora-workstation-live-45-x86_64.iso", "status": 4,
+        "percent_done": 0.18, "rate_download": 2100000, "rate_upload": 230000, "eta": 3840,
+        "upload_ratio": 0.1, "error": 0, "error_string": "",
+        "size_when_done": 2300000000, "left_until_done": 1886000000
+      },
+      {
+        "id": 7, "name": "debian-13.1.0-amd64-netinst.iso", "status": 6,
+        "percent_done": 1.0, "rate_download": 0, "rate_upload": 120000, "eta": -1,
+        "upload_ratio": 1.42, "error": 0, "error_string": "",
+        "size_when_done": 750000000, "left_until_done": 0
+      },
+      {
+        "id": 3, "name": "archlinux-2026.10.01-x86_64.iso", "status": 6,
+        "percent_done": 1.0, "rate_download": 0, "rate_upload": 0, "eta": -1,
+        "upload_ratio": 2.1, "error": 1, "error_string": "Tracker gave a warning: slow down",
+        "size_when_done": 1300000000, "left_until_done": 0
+      },
+      {
+        "id": 9, "name": "big-buck-bunny-4k-60fps.mkv", "status": 0,
+        "percent_done": 0.41, "rate_download": 0, "rate_upload": 0, "eta": -1,
+        "upload_ratio": 0.0, "error": 0, "error_string": "",
+        "size_when_done": 900000000, "left_until_done": 531000000
+      },
+      {
+        "id": 14, "name": "project-backup-2026-09.tar.zst", "status": 0,
+        "percent_done": 0.73, "rate_download": 0, "rate_upload": 0, "eta": -1,
+        "upload_ratio": 0.0, "error": 2, "error_string": "Tracker gave an error: connection refused",
+        "size_when_done": 500000000, "left_until_done": 135000000
+      }
+    ]
+  }
+}

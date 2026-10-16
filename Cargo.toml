@@ -16,6 +16,10 @@ tokio = { version = "1.52.0", features = ["full"] }
 chrono = "0.4"
 dirs = "6"
 notify-rust = "4"
+# Secret Service (keyring) client.
+oo7 = "0.6"
+# Plain HTTP only (LAN services); no TLS stack.
+reqwest = { version = "0.13", default-features = false, features = ["json"] }
 serde = { version = "1", features = ["derive"] }
 # preserve_order: headsetcontrol's EQ preset indices follow the JSON key order.
 serde_json = { version = "1", features = ["preserve_order"] }

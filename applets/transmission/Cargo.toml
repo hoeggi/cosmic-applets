@@ -1,0 +1,41 @@
+[package]
+name = "cosmic-applet-transmission"
+version = "0.1.0"
+description = "Active torrents of a remote Transmission daemon"
+publish = false
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[build-dependencies]
+xdgen.workspace = true
+
+[dependencies]
+cosmic-applet-common.workspace = true
+i18n-embed.workspace = true
+i18n-embed-fl.workspace = true
+libcosmic.workspace = true
+oo7.workspace = true
+reqwest.workspace = true
+rust-embed.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+
+# `cargo deb -p cosmic-applet-transmission` (see `make deb`)
+[package.metadata.deb]
+section = "net"
+extended-description = """\
+Panel applet for the COSMIC desktop that shows the torrents of a remote Transmission daemon \
+(e.g. on a NAS): overall progress and the number of active downloads in the panel, and a \
+read-only list of torrents in the popup. Clicking the list opens your Transmission client."""
+depends = "$auto"
+assets = [
+    ["target/release/cosmic-applet-transmission", "usr/bin/", "755"],
+    ["generated/app.desktop", "usr/share/applications/at.hoeggi.CosmicAppletTransmission.desktop", "644"],
+    ["generated/app.metainfo.xml", "usr/share/metainfo/at.hoeggi.CosmicAppletTransmission.metainfo.xml", "644"],
+    ["resources/icon.svg", "usr/share/icons/hicolor/scalable/apps/at.hoeggi.CosmicAppletTransmission.svg", "644"],
+]

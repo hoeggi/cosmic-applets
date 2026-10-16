@@ -1,0 +1,16 @@
+[Desktop Entry]
+Name=Cosmic Applet Transmission
+Comment=Active torrents of a remote Transmission daemon
+Type=Application
+Icon=folder-download-symbolic
+Exec=cosmic-applet-transmission
+Terminal=false
+StartupNotify=true
+Categories=COSMIC
+Keywords=COSMIC
+NoDisplay=true
+X-CosmicApplet=true
+X-CosmicHoverPopup=Auto
+X-CosmicShrinkable=true
+X-OverflowPriority=10
+MimeType=
