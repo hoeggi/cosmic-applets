@@ -88,6 +88,18 @@ jobs:
           VERSION: ${{ steps.meta.outputs.version }}
           PREVIOUS: ${{ steps.meta.outputs.previous }}
         run: |
-          args=(--title "$APPLET $VERSION" --generate-notes)
-          if [ -n "$PREVIOUS" ]; then args+=(--notes-start-tag "$PREVIOUS"); fi
+          # Release notes: this version's section of applets/<applet>/CHANGELOG.md
+          # (written by the /release skill); fall back to GitHub's generated notes.
+          notes=$(awk -v v="$VERSION" '
+            /^## \[/ { if (found) exit; found = index($0, "## [" v "]") == 1; next }
+            found' "applets/$APPLET/CHANGELOG.md" 2>/dev/null | sed -e '/./,$!d')
+          args=(--title "$APPLET $VERSION")
+          if [ -n "$notes" ]; then
+            printf '%s\n' "$notes" > notes.md
+            args+=(--notes-file notes.md)
+          else
+            echo "::warning::No CHANGELOG.md section for $VERSION; using generated notes"
+            args+=(--generate-notes)
+            if [ -n "$PREVIOUS" ]; then args+=(--notes-start-tag "$PREVIOUS"); fi
+          fi
           gh release create "$GITHUB_REF_NAME" target/debian/cosmic-applet-"$APPLET"_*.deb "${args[@]}"

@@ -22,6 +22,8 @@ Then add the applet in **Settings → Desktop → Panel → Applets**.
     applets/<name>/         one crate per applet (binary + i18n + resources + deb metadata)
     container/Containerfile builder image (Ubuntu 24.04 + Rust + cargo-deb)
     .github/workflows/      ci.yml (fmt, clippy, tests), release.yml (tag → .deb → GitHub release)
+    docs/RELEASING.md       release procedure (also the /release agent skill)
+    AGENTS.md               guidance for coding agents (CLAUDE.md imports it)
 
 ## Build
 
@@ -39,14 +41,23 @@ rebuilt when `container/Containerfile` changes.
 
 ## Release
 
-Each applet is versioned and released on its own. Bump `version` in
-`applets/<name>/Cargo.toml`, commit, then tag `<name>-v<version>`:
+Each applet is versioned and released on its own, and has a `CHANGELOG.md`.
 
-    git tag headsetcontrol-v0.2.0
-    git push origin headsetcontrol-v0.2.0
+The full procedure is in [docs/RELEASING.md](docs/RELEASING.md). A coding agent can run it:
+in Claude Code use `/release headsetcontrol`, `/release headsetcontrol commands@patch` or
+`/release all`; other agents find it through [AGENTS.md](AGENTS.md). It drafts each applet's
+changelog from the commits since its last tag, proposes versions and asks for approval. Once
+approved, it bumps the versions, makes one release commit, tags `<applet>-v<version>` per
+applet and pushes.
+
+By hand: add a `## [x.y.z] - date` section to `applets/<name>/CHANGELOG.md`, bump `version` in
+`applets/<name>/Cargo.toml`, commit, then tag and push:
+
+    git tag -a headsetcontrol-v0.2.0 -m "headsetcontrol v0.2.0"
+    git push --atomic origin main headsetcontrol-v0.2.0
 
 The release workflow checks that the tag matches the crate version, builds the `.deb`, and
-publishes a GitHub release with notes since that applet's previous tag.
+publishes a GitHub release. Its notes are that version's changelog section.
 
 ## Adding an applet
 
