@@ -1,0 +1,93 @@
+name: Release
+
+# Push a tag named <applet>-v<version>, e.g.
+#   git tag headsetcontrol-v0.2.0 && git push origin headsetcontrol-v0.2.0
+# The version must match applets/<applet>/Cargo.toml. The workflow builds that
+# applet's .deb and publishes a GitHub release with it attached.
+#
+# Run it manually (Actions → Release → Run workflow) to build .debs for all
+# applets as a downloadable workflow artifact, without creating a release.
+on:
+  push:
+    tags: ["*-v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # tags, for the release notes range
+
+      - name: Resolve applet and version from tag
+        id: meta
+        run: |
+          if [ "$GITHUB_REF_TYPE" != tag ]; then
+            echo "packages=$(ls applets | sed 's/^/cosmic-applet-/' | xargs)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          applet="${GITHUB_REF_NAME%-v*}"
+          version="${GITHUB_REF_NAME##*-v}"
+          manifest="applets/$applet/Cargo.toml"
+          if [ ! -f "$manifest" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not name an applet (no $manifest)"
+            exit 1
+          fi
+          crate_version=$(sed -n 's/^version = "\(.*\)"/\1/p' "$manifest" | head -n1)
+          if [ "$crate_version" != "$version" ]; then
+            echo "::error::Tag version $version does not match $manifest ($crate_version)"
+            exit 1
+          fi
+          # Previous release of the same applet, for the generated notes.
+          previous=$(git tag --list "$applet-v*" --sort=-v:refname | grep -vx "$GITHUB_REF_NAME" | head -n1)
+          {
+            echo "applet=$applet"
+            echo "version=$version"
+            echo "packages=cosmic-applet-$applet"
+            echo "previous=$previous"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config cmake libxkbcommon-dev libwayland-dev libssl-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deb
+
+      - name: Build packages
+        run: |
+          for pkg in ${{ steps.meta.outputs.packages }}; do
+            cargo build --release -p "$pkg"
+            cargo deb --no-build -p "$pkg"
+          done
+          ls -l target/debian
+
+      - name: Upload workflow artifact
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v4
+        with:
+          name: debs
+          path: target/debian/*.deb
+
+      - name: Create GitHub release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APPLET: ${{ steps.meta.outputs.applet }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          PREVIOUS: ${{ steps.meta.outputs.previous }}
+        run: |
+          args=(--title "$APPLET $VERSION" --generate-notes)
+          if [ -n "$PREVIOUS" ]; then args+=(--notes-start-tag "$PREVIOUS"); fi
+          gh release create "$GITHUB_REF_NAME" target/debian/cosmic-applet-"$APPLET"_*.deb "${args[@]}"

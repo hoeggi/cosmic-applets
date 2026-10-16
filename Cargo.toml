@@ -1,15 +1,15 @@
-[package]
-name = "cosmic-applet-commands"
-version = "0.1.0"
+[workspace]
+resolver = "3"
+members = ["common", "applets/*"]
+
+[workspace.package]
 edition = "2024"
 license = "MPL-2.0"
-description = "Run configurable commands from the COSMIC panel"
-repository = "https://github.com/hoeggi/cosmic-applet-commands"
+repository = "https://github.com/hoeggi/cosmic-applets"
+authors = ["Daniel Hoeggerl <hoeggerl.daniel@gmail.com>"]
 
-[build-dependencies]
-xdgen = "0.1"
-
-[dependencies]
+[workspace.dependencies]
+cosmic-applet-common = { path = "common" }
 i18n-embed-fl = "0.10"
 rust-embed = "8.11"
 tokio = { version = "1.52.0", features = ["full"] }
@@ -17,15 +17,17 @@ chrono = "0.4"
 dirs = "6"
 notify-rust = "4"
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+# preserve_order: headsetcontrol's EQ preset indices follow the JSON key order.
+serde_json = { version = "1", features = ["preserve_order"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+xdgen = "0.1"
 
-[dependencies.i18n-embed]
+[workspace.dependencies.i18n-embed]
 version = "0.16"
 features = ["fluent-system", "desktop-requester"]
 
-[dependencies.libcosmic]
+[workspace.dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic.git"
 # See https://github.com/pop-os/libcosmic/blob/master/Cargo.toml for available features.
 features = [

@@ -1,0 +1,38 @@
+[package]
+name = "cosmic-applet-headsetcontrol"
+version = "0.1.0"
+description = "Battery, chatmix and settings for USB headsets via headsetcontrol"
+publish = false
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[build-dependencies]
+xdgen.workspace = true
+
+[dependencies]
+cosmic-applet-common.workspace = true
+i18n-embed.workspace = true
+i18n-embed-fl.workspace = true
+libcosmic.workspace = true
+rust-embed.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+
+# `cargo deb -p cosmic-applet-headsetcontrol` (see `make deb`)
+[package.metadata.deb]
+section = "utils"
+extended-description = """\
+Panel applet for the COSMIC desktop that shows headset battery level as a ring gauge, the chatmix balance, and headset settings such as sidetone and equalizer presets, using the headsetcontrol CLI."""
+depends = "$auto"
+recommends = "headsetcontrol (>= 4.1)"
+assets = [
+    ["target/release/cosmic-applet-headsetcontrol", "usr/bin/", "755"],
+    ["generated/app.desktop", "usr/share/applications/at.hoeggi.CosmicAppletHeadsetControl.desktop", "644"],
+    ["generated/app.metainfo.xml", "usr/share/metainfo/at.hoeggi.CosmicAppletHeadsetControl.metainfo.xml", "644"],
+    ["resources/icon.svg", "usr/share/icons/hicolor/scalable/apps/at.hoeggi.CosmicAppletHeadsetControl.svg", "644"],
+]

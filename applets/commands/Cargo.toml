@@ -1,0 +1,39 @@
+[package]
+name = "cosmic-applet-commands"
+version = "0.1.0"
+description = "Run configurable commands from the COSMIC panel"
+publish = false
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[build-dependencies]
+xdgen.workspace = true
+
+[dependencies]
+cosmic-applet-common.workspace = true
+i18n-embed.workspace = true
+i18n-embed-fl.workspace = true
+libcosmic.workspace = true
+rust-embed.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+dirs.workspace = true
+
+# `cargo deb -p cosmic-applet-commands` (see `make deb`)
+[package.metadata.deb]
+section = "utils"
+extended-description = """\
+Panel applet for the COSMIC desktop that runs user-defined shell commands, shows their status and output, keeps a run history and sends notifications for long or failed runs."""
+depends = "$auto"
+
+assets = [
+    ["target/release/cosmic-applet-commands", "usr/bin/", "755"],
+    ["generated/app.desktop", "usr/share/applications/at.hoeggi.CosmicAppletCommands.desktop", "644"],
+    ["generated/app.metainfo.xml", "usr/share/metainfo/at.hoeggi.CosmicAppletCommands.metainfo.xml", "644"],
+    ["resources/icon.svg", "usr/share/icons/hicolor/scalable/apps/at.hoeggi.CosmicAppletCommands.svg", "644"],
+]

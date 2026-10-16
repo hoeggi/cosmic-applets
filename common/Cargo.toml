@@ -1,0 +1,16 @@
+[package]
+name = "cosmic-applet-common"
+version = "0.1.0"
+description = "Helpers shared by the COSMIC applets in this workspace"
+publish = false
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+libcosmic.workspace = true
+notify-rust.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

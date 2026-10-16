@@ -1,0 +1,106 @@
+{
+  "name": "HeadsetControl",
+  "version": "4.1.0",
+  "api_version": "1.5",
+  "hidapi_version": "0.14.0",
+  "device_count": 1,
+  "devices": [
+    {
+      "status": "success",
+      "device": "SteelSeries Arctis Nova 7",
+      "vendor": "SteelSeries",
+      "product": "Arctis Nova 7",
+      "id_vendor": "0x1038",
+      "id_product": "0x2202",
+      "capabilities": [
+        "CAP_SIDETONE",
+        "CAP_BATTERY_STATUS",
+        "CAP_INACTIVE_TIME",
+        "CAP_CHATMIX_STATUS",
+        "CAP_EQUALIZER_PRESET",
+        "CAP_EQUALIZER",
+        "CAP_MICROPHONE_MUTE_LED_BRIGHTNESS",
+        "CAP_MICROPHONE_VOLUME",
+        "CAP_VOLUME_LIMITER",
+        "CAP_BT_WHEN_POWERED_ON",
+        "CAP_BT_CALL_VOLUME"
+      ],
+      "capabilities_str": [
+        "sidetone",
+        "battery",
+        "inactive time",
+        "chatmix",
+        "equalizer preset",
+        "equalizer",
+        "microphone mute led brightness",
+        "microphone volume",
+        "volume limiter",
+        "bluetooth when powered on",
+        "bluetooth call volume"
+      ],
+      "battery": {
+        "status": "BATTERY_AVAILABLE",
+        "level": 100
+      },
+      "equalizer": {
+        "bands": 10,
+        "baseline": 0,
+        "step": 0.5,
+        "min": -10,
+        "max": 10
+      },
+      "equalizer_presets_count": 4,
+      "equalizer_presets": {
+        "flat": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "bass": [
+          3.5,
+          5.5,
+          4.0,
+          1.0,
+          -1.5,
+          -1.5,
+          -1.0,
+          -1.0,
+          -1.0,
+          -1.0
+        ],
+        "focus": [
+          -5.0,
+          -3.5,
+          -1.0,
+          -3.5,
+          -2.5,
+          4.0,
+          6.0,
+          -3.5,
+          0.0,
+          0.0
+        ],
+        "smiley": [
+          3.0,
+          3.5,
+          1.5,
+          -1.5,
+          -4.0,
+          -4.0,
+          -2.5,
+          1.5,
+          3.0,
+          4.0
+        ]
+      },
+      "chatmix": 64
+    }
+  ]
+}

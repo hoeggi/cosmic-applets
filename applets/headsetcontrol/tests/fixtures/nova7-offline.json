@@ -1,0 +1,25 @@
+{
+  "name": "HeadsetControl",
+  "version": "4.1.0",
+  "api_version": "1.5",
+  "hidapi_version": "0.14.0",
+  "device_count": 1,
+  "devices": [
+    {
+      "status": "partial",
+      "device": "SteelSeries Arctis Nova 7",
+      "vendor": "SteelSeries",
+      "product": "Arctis Nova 7",
+      "id_vendor": "0x1038",
+      "id_product": "0x2202",
+      "capabilities": ["CAP_SIDETONE", "CAP_BATTERY_STATUS", "CAP_CHATMIX_STATUS", "CAP_EQUALIZER_PRESET"],
+      "battery": { "status": "BATTERY_UNAVAILABLE", "level": -1 },
+      "equalizer_presets_count": 4,
+      "chatmix": 64,
+      "errors": {
+        "battery": "Device is offline or not responding",
+        "sidetone status": "This headset doesn't support sidetone-status"
+      }
+    }
+  ]
+}

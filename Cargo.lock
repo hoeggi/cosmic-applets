@@ -903,17 +903,43 @@ name = "cosmic-applet-commands"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "cosmic-applet-common",
  "dirs",
  "i18n-embed",
  "i18n-embed-fl",
  "libcosmic",
- "notify-rust",
  "rust-embed",
  "serde",
  "serde_json",
  "tokio",
  "tracing",
+ "xdgen",
+]
+
+[[package]]
+name = "cosmic-applet-common"
+version = "0.1.0"
+dependencies = [
+ "libcosmic",
+ "notify-rust",
+ "tokio",
+ "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "cosmic-applet-headsetcontrol"
+version = "0.1.0"
+dependencies = [
+ "cosmic-applet-common",
+ "i18n-embed",
+ "i18n-embed-fl",
+ "libcosmic",
+ "rust-embed",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
  "xdgen",
 ]
 

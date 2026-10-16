@@ -109,22 +109,8 @@ pub async fn notify(name: String, outcome: RunOutcome) {
         .collect::<Vec<_>>()
         .join("\n");
 
-    let result = tokio::task::spawn_blocking(move || {
-        notify_rust::Notification::new()
-            .appname("Commands")
-            .icon("utilities-terminal-symbolic")
-            .summary(&summary)
-            .body(&body)
-            .show()
-            .map(|_| ())
-    })
-    .await;
-
-    match result {
-        Ok(Err(err)) => tracing::warn!(%err, "failed to send notification"),
-        Err(err) => tracing::warn!(%err, "notification task panicked"),
-        Ok(Ok(())) => {}
-    }
+    cosmic_applet_common::notify::send("Commands", "utilities-terminal-symbolic", summary, body)
+        .await;
 }
 
 /// One line of `runs.jsonl`.

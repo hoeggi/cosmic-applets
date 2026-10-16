@@ -4,11 +4,12 @@ use crate::config::{CommandEntry, Config};
 use crate::fl;
 use crate::runner::{self, HistoryEntry, RunOutcome};
 use cosmic::applet::{menu_button, padded_control};
-use cosmic::cosmic_config::{self, CosmicConfigEntry};
-use cosmic::iced::platform_specific::shell::wayland::commands::popup::{destroy_popup, get_popup};
-use cosmic::iced::{Alignment, Color, Length, Limits, Subscription, window::Id};
+use cosmic::cosmic_config;
+use cosmic::iced::{Alignment, Length, Subscription, window::Id};
 use cosmic::prelude::*;
-use cosmic::widget::{self, button, divider, icon, text};
+use cosmic::widget::{self, button, icon, text};
+use cosmic_applet_common::widgets::{icon_button, section_divider, status_color};
+use cosmic_applet_common::{config as cfg, popup};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -126,20 +127,7 @@ impl cosmic::Application for AppModel {
         core: cosmic::Core,
         _flags: Self::Flags,
     ) -> (Self, Task<cosmic::Action<Self::Message>>) {
-        let config_ctx = cosmic_config::Config::new(Self::APP_ID, Config::VERSION)
-            .inspect_err(|err| tracing::error!(%err, "cannot open config"))
-            .ok();
-        let config = config_ctx
-            .as_ref()
-            .map(|ctx| {
-                Config::get_entry(ctx).unwrap_or_else(|(errors, config)| {
-                    for err in errors.iter().filter(|e| e.is_err()) {
-                        tracing::error!(%err, "error loading config");
-                    }
-                    config
-                })
-            })
-            .unwrap_or_default();
+        let (config, config_ctx) = cfg::load::<Config>(Self::APP_ID);
         tracing::info!(commands = config.commands.len(), "applet started");
 
         let app = AppModel {
@@ -187,16 +175,8 @@ impl cosmic::Application for AppModel {
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {
-        let mut subs = vec![
-            self.core()
-                .watch_config::<Config>(Self::APP_ID)
-                .map(|update| {
-                    for err in update.errors.iter().filter(|e| e.is_err()) {
-                        tracing::error!(%err, "config update error");
-                    }
-                    Message::UpdateConfig(update.config)
-                }),
-        ];
+        let mut subs =
+            vec![cfg::watch::<Config>(self.core(), Self::APP_ID).map(Message::UpdateConfig)];
         // Refresh the "running 0:04" timers while the popup is visible.
         if self.popup.is_some()
             && self
@@ -212,32 +192,10 @@ impl cosmic::Application for AppModel {
     fn update(&mut self, message: Self::Message) -> Task<cosmic::Action<Self::Message>> {
         match message {
             Message::TogglePopup => {
-                return if let Some(p) = self.popup.take() {
-                    destroy_popup(p)
-                } else {
-                    self.mode = Mode::List;
-                    let new_id = Id::unique();
-                    self.popup.replace(new_id);
-                    let mut popup_settings = self.core.applet.get_popup_settings(
-                        self.core.main_window_id().unwrap(),
-                        new_id,
-                        None,
-                        None,
-                        None,
-                    );
-                    popup_settings.positioner.size_limits = Limits::NONE
-                        .max_width(400.0)
-                        .min_width(320.0)
-                        .min_height(1.0)
-                        .max_height(1080.0);
-                    get_popup(popup_settings)
-                };
+                self.mode = Mode::List;
+                return popup::toggle(&self.core, &mut self.popup);
             }
-            Message::PopupClosed(id) => {
-                if self.popup == Some(id) {
-                    self.popup = None;
-                }
-            }
+            Message::PopupClosed(id) => popup::closed(&mut self.popup, id),
             Message::UpdateConfig(config) => {
                 self.runs.retain(|id, _| config.get(*id).is_some());
                 self.config = config;
@@ -487,7 +445,7 @@ impl AppModel {
 
         // Recent runs
         if !self.history.is_empty() {
-            col = col.push(padded_control(divider::horizontal::default()).padding([4, 12]));
+            col = col.push(section_divider());
             let chevron = if self.history_open { "▾" } else { "▸" };
             col = col.push(
                 menu_button(
@@ -518,7 +476,7 @@ impl AppModel {
             }
         }
 
-        col = col.push(padded_control(divider::horizontal::default()).padding([4, 12]));
+        col = col.push(section_divider());
         col = col.push(
             menu_button(
                 widget::Row::new()
@@ -558,7 +516,7 @@ impl AppModel {
             ));
         }
 
-        col.push(padded_control(divider::horizontal::default()).padding([4, 12]))
+        col.push(section_divider())
             .push(padded_control(
                 widget::Row::new()
                     .push(
@@ -611,7 +569,7 @@ impl AppModel {
         widget::Column::new()
             .padding([8, 0])
             .push(padded_control(fields))
-            .push(padded_control(divider::horizontal::default()).padding([4, 12]))
+            .push(section_divider())
             .push(padded_control(
                 widget::Row::new()
                     .push(widget::space::horizontal())
@@ -624,21 +582,6 @@ impl AppModel {
             ))
             .into()
     }
-}
-
-fn icon_button(name: &'static str) -> button::IconButton<'static, Message> {
-    button::icon(icon::from_name(name)).extra_small()
-}
-
-fn status_color(ok: bool) -> Color {
-    let theme = cosmic::theme::active();
-    let cosmic = theme.cosmic();
-    if ok {
-        cosmic.success_color()
-    } else {
-        cosmic.destructive_color()
-    }
-    .into()
 }
 
 fn status_glyph(ok: bool) -> Element<'static, Message> {

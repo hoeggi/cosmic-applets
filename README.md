@@ -1,43 +1,55 @@
-# Cosmic Applet Commands
+# COSMIC applets
 
-Run configurable commands from the COSMIC panel
+Panel applets for the [COSMIC](https://system76.com/cosmic) desktop (Pop!_OS 24.04).
 
-## Installation
+| Applet | Package | What it does |
+|---|---|---|
+| [commands](applets/commands) | `cosmic-applet-commands` | Run configurable shell commands from the panel, with status, output and history |
+| [headsetcontrol](applets/headsetcontrol) | `cosmic-applet-headsetcontrol` | Headset battery as a ring gauge, chatmix and settings via [HeadsetControl](https://github.com/Sapd/HeadsetControl) |
 
-A [justfile](./justfile) is included by default for the [casey/just][just] command runner.
+## Install
 
-- `just` builds the application with the default `just build-release` recipe
-- `just run` builds and runs the application
-- `just install` installs the project into the system
-- `just vendor` creates a vendored tarball
-- `just build-vendored` compiles with vendored dependencies from that tarball
-- `just check` runs clippy on the project to check for linter warnings
-- `just check-json` can be used by IDEs that support LSP
+Download the `.deb` from the [Releases](../../releases) page and install it with apt:
 
-## Translators
+    sudo apt install ./cosmic-applet-headsetcontrol_0.1.0-1_amd64.deb
 
-[Fluent][fluent] is used for localization of the software. Fluent's translation files are found in the [i18n directory](./i18n). New translations may copy the [English (en) localization](./i18n/en) of the project, rename `en` to the desired [ISO 639-1 language code][iso-codes], and then translations can be provided for each [message identifier][fluent-guide]. If no translation is necessary, the message may be omitted.
+Then add the applet in **Settings → Desktop → Panel → Applets**.
 
-## Packaging
+## Layout
 
-If packaging for a Linux distribution, vendor dependencies locally with the `vendor` rule, and build with the vendored sources using the `build-vendored` rule. When installing files, use the `rootdir` and `prefix` variables to change installation paths.
+    Cargo.toml              workspace: shared dependencies, one Cargo.lock / target/
+    common/                 cosmic-applet-common: logging, config, popup, notifications, widgets
+    applets/<name>/         one crate per applet (binary + i18n + resources + deb metadata)
+    container/Containerfile builder image (Ubuntu 24.04 + Rust + cargo-deb)
+    .github/workflows/      ci.yml (fmt, clippy, tests), release.yml (tag → .deb → GitHub release)
 
-```sh
-just vendor
-just build-vendored
-just rootdir=debian/cosmic-applet-commands prefix=/usr install
-```
+## Build
 
-It is recommended to build a source tarball with the vendored dependencies, which can typically be done by running `just vendor` on the host system before it enters the build environment.
+Everything runs in a Podman container (`ENGINE=docker` works too), so no Rust toolchain is
+needed on the host. The `cosmic-applet-builder` image is reused across checkouts and only
+rebuilt when `container/Containerfile` changes.
 
-## Developers
+    make build                          # all applets (APPLET=<name> for one)
+    make check test                     # fmt + clippy, unit tests
+    make run APPLET=headsetcontrol      # standalone window
+    make deb                            # target/debian/*.deb
+    make install APPLET=headsetcontrol  # builds the .deb and installs it via apt
+    make reload-panel                   # restart cosmic-panel to pick up a new binary
+    make logs                           # applet log lines from the panel's journal
 
-Developers should install [rustup][rustup] and configure their editor to use [rust-analyzer][rust-analyzer].
+## Release
 
-[fluent]: https://projectfluent.org/
-[fluent-guide]: https://projectfluent.org/fluent/guide/hello.html
-[iso-codes]: https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes
-[just]: https://github.com/casey/just
-[rustup]: https://rustup.rs/
-[rust-analyzer]: https://rust-analyzer.github.io/
-[sccache]: https://github.com/mozilla/sccache
+Each applet is versioned and released on its own. Bump `version` in
+`applets/<name>/Cargo.toml`, commit, then tag `<name>-v<version>`:
+
+    git tag headsetcontrol-v0.2.0
+    git push origin headsetcontrol-v0.2.0
+
+The release workflow checks that the tag matches the crate version, builds the `.deb`, and
+publishes a GitHub release with notes since that applet's previous tag.
+
+## Adding an applet
+
+Copy an existing `applets/<name>` directory, then rename the crate, `APP_ID`, i18n file,
+and the `[package.metadata.deb]` asset paths. The workspace, Makefile and workflows pick
+up new applets automatically.

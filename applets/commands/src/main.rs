@@ -6,15 +6,7 @@ mod i18n;
 mod runner;
 
 fn main() -> cosmic::iced::Result {
-    // stderr is forwarded by cosmic-panel to the user journal:
-    // `make logs` (journalctl -t cosmic-panel, lines prefixed with the app ID)
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "warn,cosmic_applet_commands=info".into()),
-        )
-        .with_writer(std::io::stderr)
-        .init();
+    cosmic_applet_common::init_logging("cosmic_applet_commands");
 
     // Get the system's preferred languages.
     let requested_languages = i18n_embed::DesktopLanguageRequester::requested_languages();

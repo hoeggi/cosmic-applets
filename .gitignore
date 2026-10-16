@@ -1,17 +1,11 @@
-.cargo/
-*.pdb
+/target/
 **/*.rs.bk
-debug/
-target/
+*.pdb
+.cargo/
 vendor/
 vendor.tar
-debian/*
-!debian/changelog
-!debian/control
-!debian/copyright
-!debian/install
-!debian/rules
-!debian/source
+# build.rs output (translated .desktop / metainfo)
+applets/*/generated/
 # container build
 .cache/
 .image.*.stamp
