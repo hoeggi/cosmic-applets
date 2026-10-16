@@ -1,6 +1,6 @@
 [package]
 name = "cosmic-applet-commands"
-version = "0.1.0"
+version = "0.1.1"
 description = "Run configurable commands from the COSMIC panel"
 publish = false
 edition.workspace = true

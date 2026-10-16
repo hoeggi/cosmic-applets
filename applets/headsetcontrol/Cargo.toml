@@ -1,6 +1,6 @@
 [package]
 name = "cosmic-applet-headsetcontrol"
-version = "0.1.0"
+version = "0.1.1"
 description = "Battery, chatmix and settings for USB headsets via headsetcontrol"
 publish = false
 edition.workspace = true

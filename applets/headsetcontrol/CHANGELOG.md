@@ -4,6 +4,11 @@ All notable changes to `cosmic-applet-headsetcontrol` are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/). Releases are tagged `headsetcontrol-v<version>`.
 
+## [0.1.1] - 2026-10-16
+
+### Changed
+- No changes to the applet itself. Release notes on GitHub are now taken from this changelog.
+
 ## [0.1.0] - 2026-10-16
 
 ### Added
