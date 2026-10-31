@@ -14,6 +14,7 @@ use cosmic::iced::widget::text::{Ellipsize, LineHeight, Wrapping};
 use cosmic::iced::{Alignment, Color, Length, Subscription, window::Id};
 use cosmic::prelude::*;
 use cosmic::widget::{self, button, icon, text};
+use cosmic_applet_common::leader::Leader;
 use cosmic_applet_common::widgets::{error_text, icon_button, section_divider, status_color};
 use cosmic_applet_common::{config as cfg, notify, popup};
 use std::collections::HashMap;
@@ -107,6 +108,8 @@ pub struct AppModel {
     snapshot: Option<Snapshot>,
     /// Torrent states from the last successful poll, for notifications.
     seen: Option<HashMap<i64, Seen>>,
+    /// Only one of the per-output processes sends notifications.
+    leader: Leader,
     filter: Filter,
     form: Form,
     /// Problem saving the password, shown on the list page.
@@ -374,8 +377,8 @@ impl AppModel {
                 if !matches!(self.status, Status::Connected) {
                     tracing::info!(torrents = snapshot.torrents.len(), "connected");
                 }
-                if let Some(seen) = &self.seen {
-                    task = self.notify(model::events(seen, &snapshot));
+                if let Some(events) = self.seen.as_ref().map(|s| model::events(s, &snapshot)) {
+                    task = self.notify(events);
                 }
                 self.seen = Some(model::seen(&snapshot));
                 self.snapshot = Some(snapshot);
@@ -393,7 +396,7 @@ impl AppModel {
         task
     }
 
-    fn notify(&self, events: Vec<Event>) -> Task<cosmic::Action<Message>> {
+    fn notify(&mut self, events: Vec<Event>) -> Task<cosmic::Action<Message>> {
         let events = events
             .into_iter()
             .filter(|event| match event {
@@ -402,7 +405,7 @@ impl AppModel {
             })
             .collect();
         let notifications = notifications(events, self.config.group_notifications);
-        if notifications.is_empty() {
+        if notifications.is_empty() || !self.leader.acquire(APP_ID) {
             return Task::none();
         }
         cosmic::task::future(async move {

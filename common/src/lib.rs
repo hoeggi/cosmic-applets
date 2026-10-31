@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 
 //! Helpers shared by the COSMIC applets in this workspace: logging, cosmic-config
-//! plumbing, the popup window, desktop notifications and a few popup widgets.
+//! plumbing, the popup window, desktop notifications, choosing one process per
+//! applet, and a few popup widgets.
 
 pub mod config;
+pub mod leader;
 pub mod notify;
 pub mod popup;
 pub mod widgets;
