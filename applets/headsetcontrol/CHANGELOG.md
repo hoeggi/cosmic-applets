@@ -4,6 +4,12 @@ All notable changes to `cosmic-applet-headsetcontrol` are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/). Releases are tagged `headsetcontrol-v<version>`.
 
+## [0.1.2] - 2026-10-31
+
+### Fixed
+- With the panel on several monitors, the low-battery notification now appears once instead of
+  once per monitor, and "Re-apply on reconnect" resends the settings only once.
+
 ## [0.1.1] - 2026-10-16
 
 ### Changed

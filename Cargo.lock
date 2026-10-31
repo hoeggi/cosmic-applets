@@ -970,7 +970,7 @@ dependencies = [
 
 [[package]]
 name = "cosmic-applet-commands"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "chrono",
  "cosmic-applet-common",
@@ -999,7 +999,7 @@ dependencies = [
 
 [[package]]
 name = "cosmic-applet-headsetcontrol"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "cosmic-applet-common",
  "i18n-embed",
@@ -1015,7 +1015,7 @@ dependencies = [
 
 [[package]]
 name = "cosmic-applet-transmission"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "cosmic-applet-common",
  "i18n-embed",

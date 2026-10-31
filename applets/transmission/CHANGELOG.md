@@ -4,6 +4,11 @@ All notable changes to `cosmic-applet-transmission` are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/). Releases are tagged `transmission-v<version>`.
 
+## [0.2.1] - 2026-10-31
+
+### Fixed
+- With the panel on several monitors, notifications now appear once instead of once per monitor.
+
 ## [0.2.0] - 2026-10-31
 
 ### Added
