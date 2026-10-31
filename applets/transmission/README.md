@@ -13,7 +13,8 @@ Clicking the list opens your Transmission client.
   keyring shows its own unlock prompt once.
 - The ring shows `!` when a torrent failed and a dashed ring when the server is unreachable or
   the login failed.
-- Notifications when a download finishes or a torrent fails (both can be turned off).
+- Notifications when a download finishes or a torrent fails (both can be turned off). What
+  happens between two polls is grouped into one notification, unless that is turned off.
 - The client command defaults to `flatpak run io.github.TransmissionRemoteGtk`.
 
 Config lives in `~/.config/cosmic/at.hoeggi.CosmicAppletTransmission/v1/`

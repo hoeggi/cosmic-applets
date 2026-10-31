@@ -39,8 +39,25 @@ client-command = Client command
 client-command-hint = Started when you click the list.
 notify-finished = Notify when a download finishes
 notify-errors = Notify when a torrent fails
+group-notifications = Group notifications that arrive together
 cancel = Cancel
 save = Save
 
 finished = Download finished
 failed = Torrent failed
+finished-many = { $count ->
+    [one] { $count } download finished
+   *[other] { $count } downloads finished
+}
+failed-many = { $count ->
+    [one] { $count } torrent failed
+   *[other] { $count } torrents failed
+}
+finished-and-failed = { $finished ->
+    [one] { $finished } download finished
+   *[other] { $finished } downloads finished
+}, { $failed ->
+    [one] { $failed } torrent failed
+   *[other] { $failed } torrents failed
+}
+and-more = … and { $count } more

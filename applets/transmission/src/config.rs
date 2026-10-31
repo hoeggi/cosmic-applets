@@ -19,6 +19,8 @@ pub struct Config {
     pub poll_secs: u64,
     pub notify_finished: bool,
     pub notify_errors: bool,
+    /// Send everything that happened since the last poll as one notification.
+    pub group_notifications: bool,
 }
 
 impl Default for Config {
@@ -36,6 +38,7 @@ impl Default for Config {
             poll_secs: 15,
             notify_finished: true,
             notify_errors: true,
+            group_notifications: true,
         }
     }
 }

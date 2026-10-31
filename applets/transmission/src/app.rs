@@ -23,6 +23,9 @@ use std::time::Duration;
 
 pub const APP_ID: &str = "at.hoeggi.CosmicAppletTransmission";
 
+/// Names listed in a grouped notification before it says how many more there are.
+const GROUP_MAX_NAMES: usize = 5;
+
 /// Poll interval while the popup is open.
 const POPUP_POLL: Duration = Duration::from_secs(3);
 const LIST_MAX_HEIGHT: f32 = 420.0;
@@ -57,6 +60,7 @@ struct Form {
     client_command: String,
     notify_finished: bool,
     notify_errors: bool,
+    group_notifications: bool,
 }
 
 impl Form {
@@ -71,6 +75,7 @@ impl Form {
             client_command: config.client_command.join(" "),
             notify_finished: config.notify_finished,
             notify_errors: config.notify_errors,
+            group_notifications: config.group_notifications,
         }
     }
 
@@ -132,6 +137,7 @@ pub enum Message {
     FormClientCommand(String),
     FormNotifyFinished(bool),
     FormNotifyErrors(bool),
+    FormGroupNotifications(bool),
     SaveSettings,
     Noop,
 }
@@ -302,6 +308,7 @@ impl cosmic::Application for AppModel {
             Message::FormClientCommand(v) => self.form.client_command = v,
             Message::FormNotifyFinished(on) => self.form.notify_finished = on,
             Message::FormNotifyErrors(on) => self.form.notify_errors = on,
+            Message::FormGroupNotifications(on) => self.form.group_notifications = on,
             Message::SaveSettings => return self.save_settings(),
             Message::Noop => {}
         }
@@ -387,20 +394,14 @@ impl AppModel {
     }
 
     fn notify(&self, events: Vec<Event>) -> Task<cosmic::Action<Message>> {
-        let notifications: Vec<_> = events
+        let events = events
             .into_iter()
-            .filter_map(|event| match event {
-                Event::Finished(name) if self.config.notify_finished => {
-                    Some(("emblem-ok-symbolic", fl!("finished"), name))
-                }
-                Event::Failed { name, error } if self.config.notify_errors => Some((
-                    "dialog-error-symbolic",
-                    fl!("failed"),
-                    format!("{name}\n{error}"),
-                )),
-                _ => None,
+            .filter(|event| match event {
+                Event::Finished(_) => self.config.notify_finished,
+                Event::Failed { .. } => self.config.notify_errors,
             })
             .collect();
+        let notifications = notifications(events, self.config.group_notifications);
         if notifications.is_empty() {
             return Task::none();
         }
@@ -448,6 +449,7 @@ impl AppModel {
         self.save(|c, ctx| c.set_client_command(ctx, command));
         self.save(|c, ctx| c.set_notify_finished(ctx, form.notify_finished));
         self.save(|c, ctx| c.set_notify_errors(ctx, form.notify_errors));
+        self.save(|c, ctx| c.set_group_notifications(ctx, form.group_notifications));
         self.page = Page::List;
         self.notice = None;
 
@@ -693,6 +695,11 @@ impl AppModel {
                 form.notify_errors,
                 Message::FormNotifyErrors,
             ))
+            .push(toggle_row(
+                fl!("group-notifications"),
+                form.group_notifications,
+                Message::FormGroupNotifications,
+            ))
             .spacing(spacing.space_xs);
 
         widget::Column::new()
@@ -767,6 +774,56 @@ fn torrent_row(t: &Torrent) -> Element<'_, Message> {
     menu_button(col).on_press(Message::OpenClient).into()
 }
 
+/// Icon, summary and body of one desktop notification.
+type Notification = (&'static str, String, String);
+
+/// One notification per event, or with `group` a single one covering all of them.
+fn notifications(mut events: Vec<Event>, group: bool) -> Vec<Notification> {
+    if !group || events.len() < 2 {
+        return events.into_iter().map(notification).collect();
+    }
+    events.sort_by_key(|event| matches!(event, Event::Finished(_)));
+    let failed = events
+        .iter()
+        .filter(|event| matches!(event, Event::Failed { .. }))
+        .count();
+    let finished = events.len() - failed;
+    let summary = match (finished, failed) {
+        (_, 0) => fl!("finished-many", count = finished),
+        (0, _) => fl!("failed-many", count = failed),
+        _ => fl!("finished-and-failed", finished = finished, failed = failed),
+    };
+    let icon = if failed > 0 {
+        "dialog-error-symbolic"
+    } else {
+        "emblem-ok-symbolic"
+    };
+    let mut lines: Vec<String> = events
+        .iter()
+        .take(GROUP_MAX_NAMES)
+        .map(|event| match event {
+            Event::Finished(name) => name.clone(),
+            Event::Failed { name, error } => format!("{name}: {error}"),
+        })
+        .collect();
+    let hidden = events.len().saturating_sub(GROUP_MAX_NAMES);
+    if hidden > 0 {
+        lines.push(fl!("and-more", count = hidden));
+    }
+    vec![(icon, summary, lines.join("\n"))]
+}
+
+fn notification(event: Event) -> Notification {
+    match event {
+        Event::Finished(name) => ("emblem-ok-symbolic", fl!("finished"), name),
+        Event::Failed { name, error } => (
+            "dialog-error-symbolic",
+            fl!("failed"),
+            format!("{name}\n{error}"),
+        ),
+    }
+}
+
 fn filter_label(filter: Filter) -> String {
     match filter {
         Filter::Active => fl!("filter-active"),
@@ -806,5 +863,62 @@ async fn launch(command: Vec<String>) {
     cmd.args(args);
     if cosmic::process::spawn(cmd).await.is_none() {
         tracing::warn!(?command, "failed to start client");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn finished(name: &str) -> Event {
+        Event::Finished(name.into())
+    }
+
+    fn failed(name: &str) -> Event {
+        Event::Failed {
+            name: name.into(),
+            error: "disk full".into(),
+        }
+    }
+
+    #[test]
+    fn separate_when_not_grouping() {
+        assert_eq!(
+            notifications(vec![finished("a"), failed("b")], false).len(),
+            2
+        );
+    }
+
+    #[test]
+    fn single_event_looks_the_same_grouped() {
+        for event in [finished("a"), failed("b")] {
+            assert_eq!(
+                notifications(vec![event.clone()], true),
+                notifications(vec![event], false)
+            );
+        }
+        assert!(notifications(Vec::new(), true).is_empty());
+    }
+
+    #[test]
+    fn groups_failures_first() {
+        let events = vec![finished("a"), failed("b"), finished("c")];
+        let [(icon, summary, body)] = &notifications(events, true)[..] else {
+            panic!("expected one notification");
+        };
+        assert_eq!(*icon, "dialog-error-symbolic");
+        assert_eq!(summary, "2 downloads finished, 1 torrent failed");
+        assert_eq!(body, "b: disk full\na\nc");
+    }
+
+    #[test]
+    fn group_lists_a_limited_number_of_names() {
+        let events = ["a", "b", "c", "d", "e", "f", "g"].map(finished).to_vec();
+        let [(icon, summary, body)] = &notifications(events, true)[..] else {
+            panic!("expected one notification");
+        };
+        assert_eq!(*icon, "emblem-ok-symbolic");
+        assert_eq!(summary, "7 downloads finished");
+        assert_eq!(body, "a\nb\nc\nd\ne\n… and 2 more");
     }
 }
