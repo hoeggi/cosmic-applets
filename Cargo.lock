@@ -1015,7 +1015,7 @@ dependencies = [
 
 [[package]]
 name = "cosmic-applet-transmission"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cosmic-applet-common",
  "i18n-embed",

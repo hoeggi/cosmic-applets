@@ -4,6 +4,13 @@ All notable changes to `cosmic-applet-transmission` are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/). Releases are tagged `transmission-v<version>`.
 
+## [0.2.0] - 2026-10-31
+
+### Added
+- Group notifications: downloads that finish and torrents that fail around the same time arrive
+  as one notification, with failures listed first. On by default; turn it off in the settings
+  to get one notification each.
+
 ## [0.1.0] - 2026-10-16
 
 ### Added
