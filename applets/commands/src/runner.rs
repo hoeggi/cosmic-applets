@@ -141,6 +141,14 @@ impl HistoryEntry {
         self.exit_code == Some(0)
     }
 
+    pub fn outcome(&self) -> RunOutcome {
+        RunOutcome {
+            code: self.exit_code,
+            output: self.output.clone(),
+            duration: Duration::from_millis(self.duration_ms),
+        }
+    }
+
     pub fn duration(&self) -> String {
         format_duration(Duration::from_millis(self.duration_ms))
     }

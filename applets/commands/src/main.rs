@@ -4,6 +4,7 @@ mod app;
 mod config;
 mod i18n;
 mod runner;
+mod shared;
 
 fn main() -> cosmic::iced::Result {
     cosmic_applet_common::init_logging("cosmic_applet_commands");

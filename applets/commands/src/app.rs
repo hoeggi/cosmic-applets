@@ -3,8 +3,9 @@
 use crate::config::{CommandEntry, Config};
 use crate::fl;
 use crate::runner::{self, HistoryEntry, RunOutcome};
+use crate::shared::{self, Shared, SharedRun};
 use cosmic::applet::{menu_button, padded_control};
-use cosmic::cosmic_config;
+use cosmic::cosmic_config::{self, CosmicConfigEntry};
 use cosmic::iced::{Alignment, Length, Subscription, window::Id};
 use cosmic::prelude::*;
 use cosmic::widget::{self, button, icon, text};
@@ -21,6 +22,8 @@ const HISTORY_LEN: usize = 10;
 const NOTIFY_AFTER: Duration = Duration::from_secs(2);
 /// How long the panel icon shows the error state after a failed run.
 const ERROR_BADGE_FOR: Duration = Duration::from_secs(5);
+/// How often to check that a command running on another monitor is still alive.
+const REMOTE_CHECK: Duration = Duration::from_secs(5);
 
 #[derive(Default)]
 pub struct AppModel {
@@ -31,6 +34,9 @@ pub struct AppModel {
     mode: Mode,
     form: Form,
     runs: HashMap<u64, RunState>,
+    /// Runs and finished-run count across the applet's per-output processes.
+    shared: Shared,
+    shared_ctx: Option<cosmic_config::Config>,
     expanded: Option<Expanded>,
     history: Vec<HistoryEntry>,
     history_open: bool,
@@ -79,6 +85,7 @@ pub enum Message {
     TogglePopup,
     PopupClosed(Id),
     UpdateConfig(Config),
+    UpdateShared(Shared),
     Tick,
     Noop,
     // Running
@@ -89,6 +96,8 @@ pub enum Message {
         command: String,
         outcome: RunOutcome,
     },
+    /// A finished run reached the history file.
+    HistoryWritten(u64),
     TerminalLaunched(u64, bool),
     ToggleOutput(Expanded),
     ToggleHistory,
@@ -129,11 +138,20 @@ impl cosmic::Application for AppModel {
     ) -> (Self, Task<cosmic::Action<Self::Message>>) {
         let (config, config_ctx) = cfg::load::<Config>(Self::APP_ID);
         tracing::info!(commands = config.commands.len(), "applet started");
+        let shared_ctx = cosmic_config::Config::new_state(Self::APP_ID, Shared::VERSION)
+            .inspect_err(|err| tracing::error!(%err, "cannot open shared state"))
+            .ok();
+        let shared = shared_ctx
+            .as_ref()
+            .map(|ctx| Shared::get_entry(ctx).unwrap_or_else(|(_, partial)| partial))
+            .unwrap_or_default();
 
         let app = AppModel {
             core,
             config,
             config_ctx,
+            shared,
+            shared_ctx,
             history: runner::load_history(Self::APP_ID, HISTORY_LEN),
             ..Default::default()
         };
@@ -146,11 +164,7 @@ impl cosmic::Application for AppModel {
 
     /// The button shown in the panel.
     fn view(&self) -> Element<'_, Self::Message> {
-        let icon_name = if self
-            .runs
-            .values()
-            .any(|r| matches!(r, RunState::Running(_)))
-        {
+        let icon_name = if self.any_running() {
             "process-working-symbolic"
         } else if self.error_badge.is_some() {
             "dialog-error-symbolic"
@@ -175,16 +189,18 @@ impl cosmic::Application for AppModel {
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {
-        let mut subs =
-            vec![cfg::watch::<Config>(self.core(), Self::APP_ID).map(Message::UpdateConfig)];
+        let mut subs = vec![
+            cfg::watch::<Config>(self.core(), Self::APP_ID).map(Message::UpdateConfig),
+            self.core()
+                .watch_state::<Shared>(Self::APP_ID)
+                .map(|update| Message::UpdateShared(update.config)),
+        ];
         // Refresh the "running 0:04" timers while the popup is visible.
-        if self.popup.is_some()
-            && self
-                .runs
-                .values()
-                .any(|r| matches!(r, RunState::Running(_)))
-        {
+        if self.popup.is_some() && self.any_running() {
             subs.push(cosmic::iced::time::every(Duration::from_secs(1)).map(|_| Message::Tick));
+        } else if self.any_remote() {
+            // The process running it can exit without updating the shared state.
+            subs.push(cosmic::iced::time::every(REMOTE_CHECK).map(|_| Message::Tick));
         }
         Subscription::batch(subs)
     }
@@ -200,6 +216,13 @@ impl cosmic::Application for AppModel {
                 self.runs.retain(|id, _| config.get(*id).is_some());
                 self.config = config;
             }
+            Message::UpdateShared(shared) => {
+                let finished = shared.finished != self.shared.finished;
+                self.shared = shared;
+                if finished {
+                    self.reload_history();
+                }
+            }
             Message::Tick | Message::Noop => {}
 
             Message::Run(id) => return self.run(id),
@@ -209,6 +232,7 @@ impl cosmic::Application for AppModel {
                 command,
                 outcome,
             } => return self.run_finished(id, name, command, outcome),
+            Message::HistoryWritten(id) => self.update_shared(|s| s.finish(id)),
             Message::TerminalLaunched(id, launched) => {
                 if !launched {
                     tracing::warn!(id, terminal = ?self.config.terminal, "failed to launch terminal");
@@ -310,6 +334,10 @@ impl AppModel {
             });
         }
 
+        if !self.claim(id) {
+            tracing::info!(name = %entry.name, "already running on another monitor");
+            return Task::none();
+        }
         self.runs.insert(id, RunState::Running(Instant::now()));
         cosmic::task::future(async move {
             let outcome = runner::run_captured(entry.command.clone()).await;
@@ -346,7 +374,7 @@ impl AppModel {
         }
         tasks.push(cosmic::task::future(async move {
             runner::append_history(APP_ID, entry).await;
-            Message::Noop
+            Message::HistoryWritten(id)
         }));
 
         if self.popup.is_none() || outcome.duration > NOTIFY_AFTER {
@@ -373,6 +401,67 @@ impl AppModel {
         Task::batch(tasks)
     }
 
+    fn any_running(&self) -> bool {
+        self.any_remote()
+            || self
+                .runs
+                .values()
+                .any(|r| matches!(r, RunState::Running(_)))
+    }
+
+    fn any_remote(&self) -> bool {
+        self.shared.running.values().any(SharedRun::is_remote)
+    }
+
+    /// The run of command `id` in another process, if there is one.
+    fn remote_run(&self, id: u64) -> Option<&SharedRun> {
+        self.shared.running.get(&id).filter(|r| r.is_remote())
+    }
+
+    /// Reserves command `id` for this process. Without shared state it always succeeds.
+    fn claim(&mut self, id: u64) -> bool {
+        let Some(ctx) = &self.shared_ctx else {
+            return true;
+        };
+        match shared::update(ctx, |s| s.claim(id, SharedRun::new())) {
+            Some((shared, claimed)) => {
+                self.shared = shared;
+                claimed
+            }
+            None => true,
+        }
+    }
+
+    fn update_shared(&mut self, change: impl FnOnce(&mut Shared)) {
+        if let Some(ctx) = &self.shared_ctx
+            && let Some((shared, ())) = shared::update(ctx, change)
+        {
+            self.shared = shared;
+        }
+    }
+
+    /// Picks up a run finished by another process, also as that command's status.
+    fn reload_history(&mut self) {
+        self.history = runner::load_history(APP_ID, HISTORY_LEN);
+        // Indices shift when a new entry is prepended.
+        if let Some(Expanded::History(_)) = self.expanded {
+            self.expanded = None;
+        }
+        let Some(run) = self.history.first() else {
+            return;
+        };
+        let command = self
+            .config
+            .commands
+            .iter()
+            .find(|c| c.name == run.name && c.command == run.command);
+        if let Some(command) = command
+            && !matches!(self.runs.get(&command.id), Some(RunState::Running(_)))
+        {
+            self.runs.insert(command.id, RunState::Done(run.outcome()));
+        }
+    }
+
     /// Writes the command list through cosmic-config (also updates `self.config`).
     fn save_commands(&mut self, commands: Vec<CommandEntry>) {
         match &self.config_ctx {
@@ -393,15 +482,23 @@ impl AppModel {
         }
 
         for entry in &self.config.commands {
-            let (status, glyph) = match self.runs.get(&entry.id) {
-                Some(RunState::Running(started)) => {
-                    let secs = started.elapsed().as_secs();
+            let running = self
+                .remote_run(entry.id)
+                .map(SharedRun::elapsed)
+                .or_else(|| match self.runs.get(&entry.id) {
+                    Some(RunState::Running(started)) => Some(started.elapsed()),
+                    _ => None,
+                });
+            let (status, glyph) = match (running, self.runs.get(&entry.id)) {
+                (Some(elapsed), _) => {
+                    let secs = elapsed.as_secs();
                     (
                         fl!("running", time = format!("{}:{:02}", secs / 60, secs % 60)),
                         None,
                     )
                 }
-                Some(RunState::Done(outcome)) => {
+                (None, Some(RunState::Running(_))) => (String::new(), None),
+                (None, Some(RunState::Done(outcome))) => {
                     let status = match outcome.code {
                         Some(0) => runner::format_duration(outcome.duration),
                         Some(code) => fl!("exit-code", code = code),
@@ -409,12 +506,12 @@ impl AppModel {
                     };
                     (status, Some(outcome.success()))
                 }
-                Some(RunState::Terminal { launched: true }) => (fl!("in-terminal"), None),
-                Some(RunState::Terminal { launched: false }) => {
+                (None, Some(RunState::Terminal { launched: true })) => (fl!("in-terminal"), None),
+                (None, Some(RunState::Terminal { launched: false })) => {
                     (fl!("terminal-failed"), Some(false))
                 }
-                None if entry.in_terminal => (fl!("in-terminal"), None),
-                None => (String::new(), None),
+                (None, None) if entry.in_terminal => (fl!("in-terminal"), None),
+                (None, None) => (String::new(), None),
             };
 
             let label = widget::Row::new()
