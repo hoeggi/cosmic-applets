@@ -10,6 +10,7 @@ use cosmic::cosmic_config;
 use cosmic::iced::{Alignment, Length, Subscription, window::Id};
 use cosmic::prelude::*;
 use cosmic::widget::{self, button, text};
+use cosmic_applet_common::leader::Leader;
 use cosmic_applet_common::widgets::{error_text, section_divider};
 use cosmic_applet_common::{config as cfg, notify, popup};
 use std::collections::HashMap;
@@ -39,6 +40,8 @@ pub struct AppModel {
     /// Last error from applying a setting.
     apply_error: Option<String>,
     low_battery_notified: bool,
+    /// Only one of the per-output processes notifies and re-applies settings.
+    leader: Leader,
     panel_icon: Option<(PanelState, cosmic::widget::icon::Handle)>,
 }
 
@@ -231,7 +234,7 @@ impl AppModel {
                 let reconnected = online && !self.was_online;
                 self.was_online = online;
                 self.device = device;
-                if reconnected && self.config.reapply_on_reconnect {
+                if reconnected && self.config.reapply_on_reconnect && self.leader.acquire(APP_ID) {
                     tasks.push(self.reapply());
                 }
                 tasks.push(self.check_low_battery());
@@ -335,6 +338,9 @@ impl AppModel {
             Some(BatteryState::Available(level)) if threshold > 0 && level <= threshold => {
                 if !self.low_battery_notified {
                     self.low_battery_notified = true;
+                    if !self.leader.acquire(APP_ID) {
+                        return Task::none();
+                    }
                     let name = self
                         .device
                         .as_ref()
