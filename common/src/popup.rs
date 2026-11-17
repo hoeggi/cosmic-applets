@@ -9,6 +9,16 @@ use cosmic::prelude::*;
 /// Opens the popup, or closes it when it is open. `popup` tracks the open
 /// popup's window ID; check `popup.is_some()` afterwards to see which happened.
 pub fn toggle<M: 'static>(core: &cosmic::Core, popup: &mut Option<Id>) -> Task<cosmic::Action<M>> {
+    toggle_with_max_height(core, popup, 1080.0)
+}
+
+/// Like [`toggle`], for popups that size themselves to the screen (`max_height` in logical
+/// pixels). The compositor slides and flips popups but does not shrink them.
+pub fn toggle_with_max_height<M: 'static>(
+    core: &cosmic::Core,
+    popup: &mut Option<Id>,
+    max_height: f32,
+) -> Task<cosmic::Action<M>> {
     if let Some(id) = popup.take() {
         return destroy_popup(id);
     }
@@ -22,7 +32,7 @@ pub fn toggle<M: 'static>(core: &cosmic::Core, popup: &mut Option<Id>) -> Task<c
         .max_width(400.0)
         .min_width(320.0)
         .min_height(1.0)
-        .max_height(1080.0);
+        .max_height(max_height);
     get_popup(settings)
 }
 

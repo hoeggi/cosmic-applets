@@ -27,7 +27,12 @@ const RETRY_AFTER: Duration = Duration::from_secs(5 * 60);
 const RATE_LIMIT_BACKOFF: Duration = Duration::from_secs(60 * 60);
 /// Data older than this is marked stale (dimmed in the panel, warning in the popup).
 const STALE_AFTER_MINUTES: i64 = 60;
-const POPUP_MAX_HEIGHT: f32 = 680.0;
+/// Popup height when the monitor size is not known (yet).
+const POPUP_FALLBACK_HEIGHT: f32 = 900.0;
+/// Room left between the popup and the screen edge.
+const SCREEN_MARGIN: f32 = 16.0;
+/// Header, dividers and padding above and below the scrolling part of a page.
+const POPUP_CHROME: f32 = 90.0;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum Page {
@@ -90,6 +95,8 @@ pub struct AppModel {
     /// Language for place names in search results, e.g. `de`.
     language: String,
     refresh_labels: Vec<String>,
+    /// Logical height of the monitor the panel is on; sizes the popup.
+    monitor_height: Option<f32>,
     /// The chart rendered for a width and data; regenerated only when either changes.
     chart: RefCell<Option<(ChartKey, widget::svg::Handle)>>,
 }
@@ -106,6 +113,7 @@ struct ChartKey {
 pub enum Message {
     TogglePopup,
     PopupClosed(Id),
+    MonitorSize(Option<cosmic::iced::Size>),
     UpdateConfig(Config),
     Tick,
     Refresh,
@@ -165,7 +173,7 @@ impl cosmic::Application for AppModel {
                 .collect(),
             ..Default::default()
         };
-        let task = app.fetch();
+        let task = Task::batch([app.fetch(), app.query_monitor()]);
         (app, task)
     }
 
@@ -196,13 +204,21 @@ impl cosmic::Application for AppModel {
     fn update(&mut self, message: Self::Message) -> Task<cosmic::Action<Self::Message>> {
         match message {
             Message::TogglePopup => {
-                let task = popup::toggle(&self.core, &mut self.popup);
-                if self.popup.is_some() {
-                    self.page = Page::Weather;
+                let height = self.popup_height();
+                let task = popup::toggle_with_max_height(&self.core, &mut self.popup, height);
+                if self.popup.is_none() {
+                    return task;
                 }
-                return task;
+                self.page = Page::Weather;
+                // The panel may have moved to another monitor since.
+                return Task::batch([task, self.query_monitor()]);
             }
             Message::PopupClosed(id) => popup::closed(&mut self.popup, id),
+            Message::MonitorSize(size) => {
+                if let Some(size) = size {
+                    self.monitor_height = Some(size.height);
+                }
+            }
             Message::UpdateConfig(config) => {
                 let before = self.config.request();
                 self.config = config;
@@ -439,6 +455,31 @@ impl AppModel {
         cfg::save(&mut self.config, self.config_ctx.as_ref(), set);
     }
 
+    fn query_monitor(&self) -> Task<cosmic::Action<Message>> {
+        self.core.main_window_id().map_or_else(Task::none, |id| {
+            cosmic::iced::window::monitor_size(id)
+                .map(|size| cosmic::Action::App(Message::MonitorSize(size)))
+        })
+    }
+
+    /// The popup may use the monitor's height, minus the panel and a margin.
+    fn popup_height(&self) -> f32 {
+        let Some(monitor) = self.monitor_height else {
+            return POPUP_FALLBACK_HEIGHT;
+        };
+        let panel = if self.core.applet.is_horizontal() {
+            self.core.applet.suggested_window_size().1.get() as f32
+        } else {
+            0.0
+        };
+        (monitor - panel - SCREEN_MARGIN).max(POPUP_FALLBACK_HEIGHT.min(monitor))
+    }
+
+    /// Height of the scrolling part of a page; it only scrolls when even that is too little.
+    fn scroll_height(&self) -> f32 {
+        self.popup_height() - POPUP_CHROME
+    }
+
     fn age_minutes(&self) -> Option<i64> {
         self.data
             .as_ref()
@@ -526,10 +567,16 @@ impl AppModel {
         } else {
             [major, minor]
         };
-        button::custom(content)
-            .padding(padding)
-            .class(cosmic::theme::Button::AppletIcon)
-            .on_press_down(Message::TogglePopup)
+        // Autosize lets the panel give the applet room for everything shown, instead of one
+        // icon-sized square that cuts off the temperature.
+        self.core
+            .applet
+            .autosize_window(
+                button::custom(content)
+                    .padding(padding)
+                    .class(cosmic::theme::Button::AppletIcon)
+                    .on_press_down(Message::TogglePopup),
+            )
             .into()
     }
 
@@ -636,7 +683,7 @@ impl AppModel {
 
         col.push(
             widget::container(widget::scrollable(body).height(Length::Shrink))
-                .max_height(POPUP_MAX_HEIGHT),
+                .max_height(self.scroll_height()),
         )
         .into()
     }
@@ -1161,7 +1208,7 @@ impl AppModel {
             .push(section_divider())
             .push(
                 widget::container(widget::scrollable(body).height(Length::Shrink))
-                    .max_height(POPUP_MAX_HEIGHT),
+                    .max_height(self.scroll_height()),
             )
             .into()
     }
