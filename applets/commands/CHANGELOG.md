@@ -4,6 +4,12 @@ All notable changes to `cosmic-applet-commands` are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/). Releases are tagged `commands-v<version>`.
 
+## [0.1.3] - 2026-11-17
+
+### Fixed
+- A command that was running when the computer shut down, the session ended or the applet
+  crashed no longer shows as running forever afterwards.
+
 ## [0.1.2] - 2026-10-31
 
 ### Fixed
