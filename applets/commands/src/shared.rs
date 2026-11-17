@@ -12,28 +12,53 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs::{File, OpenOptions};
 use std::path::PathBuf;
+use std::sync::OnceLock;
 use std::time::Duration;
 
 /// A command running in one of the applet's processes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+///
+/// The state outlives the processes (it is kept across reboots), and PIDs are reused, so
+/// the process is identified by its PID together with its start time and the boot it ran in.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SharedRun {
     /// The process running it. Entries of a process that died are ignored.
     pub pid: u32,
+    /// When that process started, in clock ticks after boot. Missing in entries written
+    /// before it was recorded; those count as dead.
+    #[serde(default)]
+    pub pid_start: u64,
+    /// `/proc/sys/kernel/random/boot_id` of the boot the process ran in.
+    #[serde(default)]
+    pub boot_id: String,
     /// Unix timestamp (seconds).
     pub started: i64,
 }
 
 impl SharedRun {
     pub fn new() -> Self {
+        Self::of_process(std::process::id())
+    }
+
+    fn of_process(pid: u32) -> Self {
         Self {
-            pid: std::process::id(),
+            pid,
+            pid_start: process_start(pid).unwrap_or_default(),
+            boot_id: boot_id().to_owned(),
             started: chrono::Local::now().timestamp(),
         }
     }
 
     /// Running in a process other than this one, which is still alive.
     pub fn is_remote(&self) -> bool {
-        self.pid != std::process::id() && is_alive(self.pid)
+        self.pid != std::process::id() && self.is_alive()
+    }
+
+    /// The process that started the run still exists: same boot, and the PID was not
+    /// reused since (a reused PID, also a thread ID, has a different start time).
+    pub fn is_alive(&self) -> bool {
+        !self.boot_id.is_empty()
+            && self.boot_id == boot_id()
+            && process_start(self.pid) == Some(self.pid_start)
     }
 
     pub fn elapsed(&self) -> Duration {
@@ -42,8 +67,28 @@ impl SharedRun {
     }
 }
 
-fn is_alive(pid: u32) -> bool {
-    PathBuf::from(format!("/proc/{pid}")).exists()
+/// The current boot's ID, or an empty string if it cannot be read.
+fn boot_id() -> &'static str {
+    static BOOT_ID: OnceLock<String> = OnceLock::new();
+    BOOT_ID.get_or_init(|| {
+        std::fs::read_to_string("/proc/sys/kernel/random/boot_id")
+            .map(|id| id.trim().to_owned())
+            .inspect_err(|err| tracing::warn!(%err, "cannot read boot id"))
+            .unwrap_or_default()
+    })
+}
+
+/// Start time of process `pid` in clock ticks after boot, field 22 of `/proc/<pid>/stat`.
+fn process_start(pid: u32) -> Option<u64> {
+    let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+    parse_start(&stat)
+}
+
+fn parse_start(stat: &str) -> Option<u64> {
+    // Field 2 is the command name in parentheses, which may itself contain spaces and
+    // parentheses; the fields after the last `)` start at field 3.
+    let (_, rest) = stat.rsplit_once(')')?;
+    rest.split_whitespace().nth(22 - 3)?.parse().ok()
 }
 
 #[derive(Debug, Clone, Default, CosmicConfigEntry, Eq, PartialEq)]
@@ -61,9 +106,18 @@ impl Shared {
         if self.running.get(&id).is_some_and(SharedRun::is_remote) {
             return false;
         }
-        self.running.retain(|_, r| is_alive(r.pid));
+        self.prune();
         self.running.insert(id, run);
         true
+    }
+
+    /// Drops runs of processes that no longer exist, e.g. cut off by a shutdown.
+    pub fn prune(&mut self) {
+        self.running.retain(|_, r| r.is_alive());
+    }
+
+    pub fn has_stale(&self) -> bool {
+        self.running.values().any(|r| !r.is_alive())
     }
 
     pub fn finish(&mut self, id: u64) {
@@ -117,8 +171,8 @@ mod tests {
     /// The parent process: alive, and not this process.
     fn other() -> SharedRun {
         SharedRun {
-            pid: std::os::unix::process::parent_id(),
             started: 0,
+            ..SharedRun::of_process(std::os::unix::process::parent_id())
         }
     }
 
@@ -126,8 +180,53 @@ mod tests {
     fn dead() -> SharedRun {
         SharedRun {
             pid: u32::MAX,
-            started: 0,
+            ..other()
         }
+    }
+
+    #[test]
+    fn a_run_from_another_boot_is_dead() {
+        let run = SharedRun {
+            boot_id: "00000000-0000-0000-0000-000000000000".into(),
+            ..other()
+        };
+        assert!(!run.is_alive());
+        assert!(!run.is_remote());
+    }
+
+    #[test]
+    fn a_reused_pid_is_dead() {
+        let run = SharedRun {
+            pid_start: other().pid_start + 1,
+            ..other()
+        };
+        assert!(!run.is_alive());
+    }
+
+    #[test]
+    fn an_entry_without_process_identity_is_dead() {
+        let pid = std::os::unix::process::parent_id();
+        let run: SharedRun =
+            serde_json::from_str(&format!(r#"{{"pid":{pid},"started":0}}"#)).unwrap();
+        assert!(!run.is_alive());
+    }
+
+    #[test]
+    fn prune_drops_dead_runs_only() {
+        let mut shared = Shared::default();
+        shared.running.insert(1, other());
+        shared.running.insert(2, dead());
+        assert!(shared.has_stale());
+        shared.prune();
+        assert_eq!(shared.running, BTreeMap::from([(1, other())]));
+        assert!(!shared.has_stale());
+    }
+
+    #[test]
+    fn parse_start_handles_names_with_spaces_and_parens() {
+        let stat = "42 (a) b) S 1 42 42 0 -1 4194560 100 0 0 0 1 2 0 0 20 0 1 0 98765 1000 10";
+        assert_eq!(parse_start(stat), Some(98765));
+        assert_eq!(parse_start("42 (x"), None);
     }
 
     #[test]
@@ -145,7 +244,7 @@ mod tests {
         shared.running.insert(1, dead());
         shared.running.insert(2, dead());
         let run = SharedRun::new();
-        assert!(shared.claim(1, run));
+        assert!(shared.claim(1, run.clone()));
         assert_eq!(shared.running, BTreeMap::from([(1, run)]));
     }
 

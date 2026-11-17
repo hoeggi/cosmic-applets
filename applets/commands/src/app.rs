@@ -141,10 +141,18 @@ impl cosmic::Application for AppModel {
         let shared_ctx = cosmic_config::Config::new_state(Self::APP_ID, Shared::VERSION)
             .inspect_err(|err| tracing::error!(%err, "cannot open shared state"))
             .ok();
-        let shared = shared_ctx
+        let mut shared = shared_ctx
             .as_ref()
             .map(|ctx| Shared::get_entry(ctx).unwrap_or_else(|(_, partial)| partial))
             .unwrap_or_default();
+        // Runs cut off by a shutdown or crash would otherwise show as running forever.
+        if let Some(ctx) = &shared_ctx
+            && shared.has_stale()
+            && let Some((pruned, ())) = shared::update(ctx, Shared::prune)
+        {
+            tracing::info!("dropped runs of processes that are gone");
+            shared = pruned;
+        }
 
         let app = AppModel {
             core,
