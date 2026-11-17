@@ -48,6 +48,27 @@ condition = { $code ->
    *[other] Unknown
 }
 
+# Details under the current conditions
+show-details = Show details
+hide-details = Hide details
+humidity = Humidity
+wind = Wind
+gusts = Gusts
+pressure = Pressure
+uv-today = UV today
+visibility = Visibility
+uv-value = { $value } · { $band }
+compass = { $point ->
+    [0] N
+    [1] NE
+    [2] E
+    [3] SE
+    [4] S
+    [5] SW
+    [6] W
+   *[7] NW
+}
+
 # Rain / snow alert for the next 2 hours
 precip = { $kind ->
     [snow] { $intensity ->

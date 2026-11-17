@@ -509,6 +509,36 @@ pub fn wind(speed: f64, units: Units) -> String {
     }
 }
 
+/// Compass point 0 (N) to 7 (NW) for the direction the wind comes from.
+pub fn compass(degrees: f64) -> u8 {
+    ((degrees.rem_euclid(360.0) + 22.5) / 45.0) as u8 % 8
+}
+
+/// Pressure arrives in hPa for both unit systems.
+pub fn pressure(hpa: f64, units: Units) -> String {
+    match units {
+        Units::Metric => format!("{hpa:.0} hPa"),
+        Units::Imperial => format!("{:.2} inHg", hpa * 0.029_53),
+    }
+}
+
+/// Visibility arrives in metres (feet with imperial units).
+pub fn visibility(distance: f64, units: Units) -> String {
+    match units {
+        Units::Metric if distance < 1000.0 => format!("{distance:.0} m"),
+        Units::Metric if distance < 10_000.0 => format!("{:.1} km", distance / 1000.0),
+        Units::Metric => format!("{:.0} km", distance / 1000.0),
+        Units::Imperial => {
+            let miles = distance / 5280.0;
+            if miles < 10.0 {
+                format!("{miles:.1} mi")
+            } else {
+                format!("{miles:.0} mi")
+            }
+        }
+    }
+}
+
 pub fn clock(time: NaiveTime) -> String {
     time.format("%H:%M").to_string()
 }
@@ -699,5 +729,15 @@ mod tests {
         assert_eq!(wind(13.6, Units::Metric), "14 km/h");
         assert_eq!(icon(2, false), "weather-few-clouds-night-symbolic");
         assert_eq!(icon(73, true), "weather-snow-symbolic");
+        assert_eq!(compass(187.0), 4);
+        assert_eq!(compass(350.0), 0);
+        assert_eq!(compass(-10.0), 0);
+        assert_eq!(compass(292.0), 6);
+        assert_eq!(pressure(994.7, Units::Metric), "995 hPa");
+        assert_eq!(pressure(1013.25, Units::Imperial), "29.92 inHg");
+        assert_eq!(visibility(22_600.0, Units::Metric), "23 km");
+        assert_eq!(visibility(4_250.0, Units::Metric), "4.2 km");
+        assert_eq!(visibility(800.0, Units::Metric), "800 m");
+        assert_eq!(visibility(97_440.9, Units::Imperial), "18 mi");
     }
 }

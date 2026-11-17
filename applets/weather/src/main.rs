@@ -5,6 +5,7 @@ mod app;
 mod chart;
 mod config;
 mod i18n;
+mod icons;
 mod model;
 
 fn main() -> cosmic::iced::Result {

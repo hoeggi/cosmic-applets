@@ -47,6 +47,9 @@ pub struct Config {
     /// Pollen in the popup (Europe only; same request as air quality).
     pub show_pollen: bool,
     pub refresh_mins: u64,
+    /// Humidity, wind, pressure, UV and visibility under the current conditions; toggled from
+    /// the popup and kept across restarts.
+    pub show_details: bool,
 }
 
 impl Default for Config {
@@ -61,6 +64,7 @@ impl Default for Config {
             show_air: false,
             show_pollen: false,
             refresh_mins: 15,
+            show_details: false,
         }
     }
 }

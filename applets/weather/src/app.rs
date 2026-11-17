@@ -4,6 +4,7 @@ use crate::api::{Air, AirCurrent, ApiError, Client, Forecast};
 use crate::chart;
 use crate::config::{self, Config, Location, REFRESH_CHOICES, Units};
 use crate::fl;
+use crate::icons::{self, Glyph};
 use crate::model::{self, Alert, Day, Pollen, Timeline, When};
 use cosmic::applet::{menu_button, padded_control};
 use cosmic::cosmic_config;
@@ -128,6 +129,7 @@ pub enum Message {
     SetPanelHighLow(bool),
     SetShowAir(bool),
     SetShowPollen(bool),
+    ToggleDetails,
     SetRefresh(usize),
     SearchQuery(String),
     Search,
@@ -275,6 +277,10 @@ impl cosmic::Application for AppModel {
             }
             Message::SetShowAir(on) => return self.set(|c, ctx| c.set_show_air(ctx, on)),
             Message::SetShowPollen(on) => return self.set(|c, ctx| c.set_show_pollen(ctx, on)),
+            Message::ToggleDetails => {
+                let on = !self.config.show_details;
+                self.save(|c, ctx| c.set_show_details(ctx, on));
+            }
             Message::SetRefresh(index) => {
                 if let Some(mins) = REFRESH_CHOICES.get(index).copied() {
                     self.save(|c, ctx| c.set_refresh_mins(ctx, mins));
@@ -640,7 +646,13 @@ impl AppModel {
             col = col.push(padded_control(self.view_banner(err, data)));
         }
         let now = model::local_now(data.forecast.utc_offset_seconds);
-        let mut body = widget::Column::new().push(padded_control(self.view_now(data, now)));
+        let mut body = widget::Column::new().push(self.view_now(data, now));
+        if self.config.show_details {
+            let uv = model::days(&data.forecast, now)
+                .first()
+                .and_then(|d| d.uv_max);
+            body = body.push(padded_control(view_details(data, uv)));
+        }
         if let Some(alert) = model::alert(&data.forecast.minutely_15, now, data.units) {
             body = body.push(padded_control(view_alert(&alert, data.units)));
         }
@@ -778,21 +790,29 @@ impl AppModel {
             .spacing(16)
             .align_y(Alignment::Center);
         if let Some(today) = model::days(&data.forecast, now).first() {
-            let sun = |name: &'static str, time: Option<chrono::NaiveTime>| {
+            let sun = |glyph: Glyph, time: Option<chrono::NaiveTime>| {
                 widget::Row::new()
-                    .push(icon::from_name(name).size(16).icon())
+                    .push(widget::icon(glyph.handle()).size(16))
                     .push(text::body(time.map_or_else(String::new, model::clock)))
                     .spacing(8)
                     .align_y(Alignment::Center)
             };
             row = row.push(
                 widget::Column::new()
-                    .push(sun("daytime-sunrise-symbolic", today.sunrise))
-                    .push(sun("daytime-sunset-symbolic", today.sunset))
+                    .push(sun(Glyph::Sunrise, today.sunrise))
+                    .push(sun(Glyph::Sunset, today.sunset))
                     .spacing(6),
             );
         }
-        row.into()
+        // Tapping the row shows or hides the detail tiles, like a day row.
+        let chevron = if self.config.show_details {
+            "pan-down-symbolic"
+        } else {
+            "go-next-symbolic"
+        };
+        menu_button(row.push(icon::from_name(chevron).size(16).icon()))
+            .on_press(Message::ToggleDetails)
+            .into()
     }
 
     /// Chart and table on one grid: both fill the same width, the chart is drawn at exactly
@@ -920,6 +940,68 @@ impl AppModel {
     }
 }
 
+/// Humidity, wind, gusts, pressure, UV and visibility in two columns.
+fn view_details(data: &Data, uv: Option<f64>) -> Element<'static, Message> {
+    let current = &data.forecast.current;
+    let units = data.units;
+    let or_dash = |v: Option<String>| v.unwrap_or_else(|| "–".to_owned());
+    let wind = current.wind_speed_10m.map(|speed| {
+        let mut value = model::wind(speed, units);
+        if let Some(direction) = current.wind_direction_10m {
+            value = format!(
+                "{value} {}",
+                fl!("compass", point = model::compass(direction))
+            );
+        }
+        value
+    });
+    let theme = |name: &'static str| Some(icon::from_name(name).handle());
+    let tiles = [
+        (
+            Some(Glyph::Humidity.handle()),
+            fl!("humidity"),
+            or_dash(current.relative_humidity_2m.map(|h| format!("{h:.0}%"))),
+        ),
+        (Some(Glyph::Wind.handle()), fl!("wind"), or_dash(wind)),
+        (
+            Some(Glyph::Wind.handle()),
+            fl!("gusts"),
+            or_dash(current.wind_gusts_10m.map(|g| model::wind(g, units))),
+        ),
+        (
+            Some(Glyph::Pressure.handle()),
+            fl!("pressure"),
+            or_dash(current.pressure_msl.map(|p| model::pressure(p, units))),
+        ),
+        (
+            theme(icons::UV),
+            fl!("uv-today"),
+            or_dash(uv.map(|uv| {
+                fl!(
+                    "uv-value",
+                    value = format!("{uv:.1}"),
+                    band = fl!("uv-band", band = model::uv_band(uv))
+                )
+            })),
+        ),
+        (
+            theme(icons::VISIBILITY),
+            fl!("visibility"),
+            or_dash(current.visibility.map(|v| model::visibility(v, units))),
+        ),
+    ];
+    let mut col = widget::Column::new().spacing(6);
+    let mut tiles = tiles.into_iter();
+    while let Some((icon, label, value)) = tiles.next() {
+        let mut row = widget::Row::new().push(tile(icon, label, value)).spacing(6);
+        if let Some((icon, label, value)) = tiles.next() {
+            row = row.push(tile(icon, label, value));
+        }
+        col = col.push(row);
+    }
+    col.into()
+}
+
 fn view_alert(alert: &Alert, units: Units) -> Element<'static, Message> {
     let what = fl!(
         "precip",
@@ -1042,8 +1124,8 @@ fn view_air(air: &AirCurrent, uv: Option<f64>) -> Element<'static, Message> {
     let value = |v: Option<f64>| v.map_or_else(|| "–".to_owned(), |v| format!("{v:.0} µg/m³"));
     col = col.push(
         widget::Row::new()
-            .push(tile(fl!("pm25"), value(air.pm2_5)))
-            .push(tile(fl!("no2"), value(air.nitrogen_dioxide)))
+            .push(tile(None, fl!("pm25"), value(air.pm2_5)))
+            .push(tile(None, fl!("no2"), value(air.nitrogen_dioxide)))
             .spacing(8),
     );
     if let Some(uv) = uv {
@@ -1357,33 +1439,41 @@ fn toggle_row(
         .into()
 }
 
-/// Label and value on a rounded component background.
-fn tile(label: String, value: String) -> Element<'static, Message> {
-    widget::container(
-        widget::Column::new()
-            .push(text::caption(label))
-            .push(text::body(value).font(cosmic::font::semibold())),
-    )
-    .padding([6, 10])
-    .width(Length::Fill)
-    .class(cosmic::theme::Container::custom(|theme| {
-        iced_container::Style {
-            background: Some(Background::Color(
-                theme
-                    .cosmic()
-                    .background(theme.transparent)
-                    .component
-                    .base
-                    .into(),
-            )),
-            border: Border {
-                radius: 8.0.into(),
+/// Label and value, with an optional icon, on a rounded component background.
+fn tile(icon: Option<icon::Handle>, label: String, value: String) -> Element<'static, Message> {
+    let text = widget::Column::new()
+        .push(text::caption(label))
+        .push(text::body(value).font(cosmic::font::semibold()));
+    let content: Element<'static, Message> = match icon {
+        Some(handle) => widget::Row::new()
+            .push(widget::icon(handle).size(16))
+            .push(text)
+            .spacing(10)
+            .align_y(Alignment::Center)
+            .into(),
+        None => text.into(),
+    };
+    widget::container(content)
+        .padding([6, 10])
+        .width(Length::Fill)
+        .class(cosmic::theme::Container::custom(|theme| {
+            iced_container::Style {
+                background: Some(Background::Color(
+                    theme
+                        .cosmic()
+                        .background(theme.transparent)
+                        .component
+                        .base
+                        .into(),
+                )),
+                border: Border {
+                    radius: 8.0.into(),
+                    ..Default::default()
+                },
                 ..Default::default()
-            },
-            ..Default::default()
-        }
-    }))
-    .into()
+            }
+        }))
+        .into()
 }
 
 /// European AQI bands, good to very poor (beyond 100 the marker sits at the end).

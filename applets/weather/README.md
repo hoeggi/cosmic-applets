@@ -4,7 +4,8 @@ Panel applet with the weather from [Open-Meteo](https://open-meteo.com/). No API
 is needed. The panel shows the current conditions as an icon and the temperature; the popup
 focuses on what happens next:
 
-- current conditions with feels-like temperature, sunrise and sunset
+- current conditions with feels-like temperature, sunrise and sunset; tap them for details
+  (humidity, wind and gusts, pressure, today's UV, visibility), which stay open until closed
 - an alert when rain, snow, freezing rain or a thunderstorm is due within the next 2 hours
   (from Open-Meteo's 15-minute forecast, which has real 15-minute data in Central Europe)
 - the next 24 hours every 3 hours (time, icon, temperature), with a chart under it: the
@@ -22,9 +23,14 @@ The forecast refreshes every 15 minutes by default (10, 15, 30 or 60). After an 
 within 5 minutes; when Open-Meteo's request limit is reached (HTTP 429) it waits an hour. Data
 older than an hour is dimmed in the panel and marked in the popup.
 
+Icons come from the icon theme. libcosmic looks in the COSMIC and Pop themes only, which have
+nothing for sunrise, sunset, wind, humidity or pressure, so those five are small glyphs bundled in
+`src/icons.rs`. An opt-in test checks the theme icons on the host:
+`target/release/deps/cosmic_applet_weather-* --ignored --nocapture theme_icons_resolve`.
+
 Config lives in `~/.config/cosmic/at.hoeggi.CosmicAppletWeather/v1/`
 (`locations`, `active`, `units`, `panel_temperature`, `panel_precipitation`, `panel_high_low`,
-`show_air`, `show_pollen`, `refresh_mins`).
+`show_air`, `show_pollen`, `refresh_mins`, `show_details`).
 
 Weather data by [Open-Meteo.com](https://open-meteo.com/), licensed
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Open-Meteo's free API is for

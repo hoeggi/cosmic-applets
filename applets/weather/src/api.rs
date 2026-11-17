@@ -62,6 +62,23 @@ pub struct Current {
     pub apparent_temperature: Option<f64>,
     pub weather_code: Option<u8>,
     pub is_day: Option<u8>,
+    /// %.
+    #[serde(default)]
+    pub relative_humidity_2m: Option<f64>,
+    /// km/h (mph).
+    #[serde(default)]
+    pub wind_speed_10m: Option<f64>,
+    /// Degrees the wind comes from.
+    #[serde(default)]
+    pub wind_direction_10m: Option<f64>,
+    #[serde(default)]
+    pub wind_gusts_10m: Option<f64>,
+    /// hPa, also with imperial units.
+    #[serde(default)]
+    pub pressure_msl: Option<f64>,
+    /// Metres (feet).
+    #[serde(default)]
+    pub visibility: Option<f64>,
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq)]
@@ -179,7 +196,9 @@ impl Client {
             ("forecast_minutely_15", MINUTELY_STEPS.to_string()),
             (
                 "current",
-                "temperature_2m,apparent_temperature,weather_code,is_day".into(),
+                "temperature_2m,apparent_temperature,weather_code,is_day,relative_humidity_2m,\
+                 wind_speed_10m,wind_direction_10m,wind_gusts_10m,pressure_msl,visibility"
+                    .into(),
             ),
             ("minutely_15", "precipitation,snowfall,weather_code".into()),
             (
@@ -302,6 +321,10 @@ pub mod tests {
             let forecast = client.forecast(&place, units).await.unwrap();
             assert_eq!(forecast.minutely_15.time.len(), MINUTELY_STEPS);
             assert_eq!(forecast.daily.time.len(), usize::from(FORECAST_DAYS));
+            let current = &forecast.current;
+            println!("{units:?} details: {current:?}");
+            assert!(current.relative_humidity_2m.is_some() && current.pressure_msl.is_some());
+            assert!(current.wind_speed_10m.is_some() && current.visibility.is_some());
             let now = crate::model::local_now(forecast.utc_offset_seconds);
             let timeline = crate::model::timeline(&forecast, now).expect("hourly data covers now");
             println!(
