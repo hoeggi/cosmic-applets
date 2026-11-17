@@ -1,0 +1,16 @@
+[Desktop Entry]
+Name=Cosmic Applet Weather
+Comment=Current weather and forecast from Open-Meteo
+Type=Application
+Icon=weather-few-clouds-symbolic
+Exec=cosmic-applet-weather
+Terminal=false
+StartupNotify=true
+Categories=COSMIC
+Keywords=COSMIC
+NoDisplay=true
+X-CosmicApplet=true
+X-CosmicHoverPopup=Auto
+X-CosmicShrinkable=true
+X-OverflowPriority=10
+MimeType=

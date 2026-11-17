@@ -1,0 +1,42 @@
+[package]
+name = "cosmic-applet-weather"
+version = "0.1.0"
+description = "Current weather and forecast from Open-Meteo"
+publish = false
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[build-dependencies]
+xdgen.workspace = true
+
+[dependencies]
+chrono.workspace = true
+cosmic-applet-common.workspace = true
+i18n-embed.workspace = true
+i18n-embed-fl.workspace = true
+libcosmic.workspace = true
+# Open-Meteo is HTTPS only. rustls with the system certificate store; only this applet needs TLS.
+reqwest = { workspace = true, features = ["rustls", "query"] }
+rust-embed.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+
+# `cargo deb -p cosmic-applet-weather` (see `make deb`)
+[package.metadata.deb]
+section = "misc"
+extended-description = """\
+Panel applet for the COSMIC desktop with the current weather from Open-Meteo: temperature and \
+conditions in the panel; a 24-hour chart, a 7-day forecast, an alert before rain or snow, and \
+optionally air quality and pollen in the popup. No API key or account is needed."""
+depends = "$auto"
+assets = [
+    ["target/release/cosmic-applet-weather", "usr/bin/", "755"],
+    ["generated/app.desktop", "usr/share/applications/at.hoeggi.CosmicAppletWeather.desktop", "644"],
+    ["generated/app.metainfo.xml", "usr/share/metainfo/at.hoeggi.CosmicAppletWeather.metainfo.xml", "644"],
+    ["resources/icon.svg", "usr/share/icons/hicolor/scalable/apps/at.hoeggi.CosmicAppletWeather.svg", "644"],
+]

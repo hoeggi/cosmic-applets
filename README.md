@@ -7,6 +7,7 @@ Panel applets for the [COSMIC](https://system76.com/cosmic) desktop (Pop!_OS 24.
 | [commands](applets/commands) | `cosmic-applet-commands` | Run configurable shell commands from the panel, with status, output and history |
 | [headsetcontrol](applets/headsetcontrol) | `cosmic-applet-headsetcontrol` | Headset battery as a ring gauge, chatmix and settings via [HeadsetControl](https://github.com/Sapd/HeadsetControl) |
 | [transmission](applets/transmission) | `cosmic-applet-transmission` | Progress ring and read-only torrent list for a remote [Transmission](https://transmissionbt.com/) 4.1+ daemon |
+| [weather](applets/weather) | `cosmic-applet-weather` | Current weather, 24-hour chart, 7-day forecast and rain/snow alerts from [Open-Meteo](https://open-meteo.com/), no API key needed |
 
 ## Install
 
