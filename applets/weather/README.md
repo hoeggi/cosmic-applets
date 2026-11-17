@@ -7,9 +7,10 @@ focuses on what happens next:
 - current conditions with feels-like temperature, sunrise and sunset
 - an alert when rain, snow, freezing rain or a thunderstorm is due within the next 2 hours
   (from Open-Meteo's 15-minute forecast, which has real 15-minute data in Central Europe)
-- a 24-hour temperature chart with hourly rain and night shading, and a table every 3 hours
-  under it, each column directly beneath its point on the curve
+- the next 24 hours every 3 hours (time, icon, temperature), with a chart under it: the
+  temperature curve, hourly rain and night shading, each point directly beneath its column
 - 7 days with rain amount and a low-to-high bar on one shared scale; tap a day for its hours
+  in 3-hour steps with temperature, rain chance, rain amount and wind
 - optional sections for air quality with UV, and for pollen (Europe only); both are off by
   default, and turning either on adds one request to the air-quality API per refresh
 

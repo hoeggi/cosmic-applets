@@ -2,7 +2,7 @@
 
 //! The 24-hour chart: temperature curve, hourly rain bars and night shading, drawn as an SVG.
 //!
-//! The chart shares its grid with the table below it: [`COLUMNS`] equal columns, column `j`
+//! The chart shares its grid with the table above it: [`COLUMNS`] equal columns, column `j`
 //! centred on hour `j * STEP`. The popup draws it at the exact width of the table (see
 //! `responsive` in app.rs), so dots, guides and table columns line up at any popup width without
 //! stretching. Colours come from the theme and are baked in (the panel's single-colour symbolic

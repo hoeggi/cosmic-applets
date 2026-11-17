@@ -796,7 +796,7 @@ impl AppModel {
     }
 
     /// Chart and table on one grid: both fill the same width, the chart is drawn at exactly
-    /// that width, so each column sits under its point on the curve.
+    /// that width, so each point on the curve sits under its column.
     fn view_timeline<'a>(&'a self, timeline: Timeline, units: Units) -> Element<'a, Message> {
         let columns = timeline.columns.clone();
         let chart = widget::container(responsive(move |size| {
@@ -806,30 +806,22 @@ impl AppModel {
         .width(Length::Fill);
 
         let table = columns.into_iter().fold(widget::Row::new(), |row, column| {
-            let probability = column
-                .probability
-                .map_or_else(String::new, |p| format!("{p:.0}%"));
             row.push(
                 widget::Column::new()
-                    .push(text::body(
+                    .push(text::caption(
                         column
-                            .temperature
-                            .map_or_else(|| "–".to_owned(), model::temperature),
+                            .hour
+                            .map_or_else(|| fl!("now"), |h| format!("{h:02}")),
                     ))
                     .push(
                         icon::from_name(model::icon(column.code, column.is_day))
                             .size(16)
                             .icon(),
                     )
-                    .push(
-                        text::caption(probability)
-                            .class(cosmic::theme::Text::Accent)
-                            .height(Length::Fixed(16.0)),
-                    )
-                    .push(text::caption(
+                    .push(text::body(
                         column
-                            .hour
-                            .map_or_else(|| fl!("now"), |h| format!("{h:02}")),
+                            .temperature
+                            .map_or_else(|| "–".to_owned(), model::temperature),
                     ))
                     .spacing(3)
                     .align_x(Alignment::Center)
@@ -837,9 +829,10 @@ impl AppModel {
             )
         });
 
+        // Table first, the chart under it as a summary; both share the column grid.
         widget::Column::new()
-            .push(chart)
             .push(table)
+            .push(chart)
             .spacing(6)
             .into()
     }
@@ -984,11 +977,24 @@ fn view_hours(day: &Day, units: Units) -> Element<'static, Message> {
                     .font(cosmic::font::semibold())
                     .width(Length::Fill),
                 )
-                .push(text::caption(if hour.precipitation > 0.0 {
-                    model::precipitation(hour.precipitation, units)
-                } else {
-                    String::new()
-                }))
+                .push(
+                    widget::container(
+                        text::caption(
+                            hour.probability
+                                .map_or_else(String::new, |p| format!("{p:.0}%")),
+                        )
+                        .class(cosmic::theme::Text::Accent),
+                    )
+                    .align_right(Length::Fixed(36.0)),
+                )
+                .push(
+                    widget::container(text::caption(if hour.precipitation > 0.0 {
+                        model::precipitation(hour.precipitation, units)
+                    } else {
+                        String::new()
+                    }))
+                    .align_right(Length::Fixed(52.0)),
+                )
                 .push(
                     widget::container(text::caption(
                         hour.wind

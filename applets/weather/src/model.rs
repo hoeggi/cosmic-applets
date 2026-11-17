@@ -16,7 +16,7 @@ pub const COLUMNS: usize = 8;
 pub const STEP: usize = 3;
 /// Hours the chart spans: one column width beyond the last column's centre.
 pub const SPAN: usize = COLUMNS * STEP;
-/// Rain chances below this are left out of the table.
+/// Rain chances below this are left out of the 3-hour rows of a day.
 pub const SHOW_PROBABILITY_FROM: f64 = 20.0;
 
 pub fn parse_time(s: &str) -> Option<NaiveDateTime> {
@@ -208,8 +208,6 @@ pub struct Column {
     pub temperature: Option<f64>,
     pub code: u8,
     pub is_day: bool,
-    /// Shown only from [`SHOW_PROBABILITY_FROM`].
-    pub probability: Option<f64>,
 }
 
 /// The next 24 hours on a grid of [`COLUMNS`] columns, each [`STEP`] hours wide and centred on
@@ -255,8 +253,6 @@ pub fn timeline(forecast: &Forecast, now: NaiveDateTime) -> Option<Timeline> {
                     .flatten()
                     .unwrap_or(0),
                 is_day: hourly.is_day.get(first + k).copied().flatten() != Some(0),
-                probability: at(&hourly.precipitation_probability, k)
-                    .filter(|p| *p >= SHOW_PROBABILITY_FROM),
             }
         })
         .collect();
@@ -326,6 +322,8 @@ pub struct Hour {
     pub is_day: bool,
     /// Falling during the 3 hours from `time`.
     pub precipitation: f64,
+    /// Highest chance of rain in those 3 hours; only from [`SHOW_PROBABILITY_FROM`].
+    pub probability: Option<f64>,
     pub wind: Option<f64>,
 }
 
@@ -366,6 +364,11 @@ pub fn days(forecast: &Forecast, now: NaiveDateTime) -> Vec<Day> {
                         precipitation: (1..=STEP)
                             .filter_map(|k| get(&hourly.precipitation, idx + k))
                             .sum(),
+                        // Like the amount, an hourly chance refers to the preceding hour.
+                        probability: (1..=STEP)
+                            .filter_map(|k| get(&hourly.precipitation_probability, idx + k))
+                            .reduce(f64::max)
+                            .filter(|p| *p >= SHOW_PROBABILITY_FROM),
                         wind: get(&hourly.wind_speed_10m, idx),
                     })
                 })
@@ -623,12 +626,6 @@ mod tests {
             ]
         );
         assert_eq!(t.columns[1].temperature, f.hourly.temperature_2m[21]);
-        // Only notable rain chances are shown.
-        assert!(
-            t.columns
-                .iter()
-                .all(|c| c.probability.is_none_or(|p| p >= 20.0))
-        );
         // A real clock reading has seconds and nanoseconds.
         let precise = at("2026-11-17T18:40") + Duration::nanoseconds(12_345_678_901);
         assert_eq!(timeline(&f, precise), Some(t.clone()));
@@ -667,6 +664,17 @@ mod tests {
         // A step sums the rain falling in its 3 hours (values at 19, 20 and 21:00).
         let expected: f64 = (19..=21).map(|h| f.hourly.precipitation[h].unwrap()).sum();
         assert!((today.hours[0].precipitation - expected).abs() < 1e-9);
+        // …and its highest rain chance, when it is notable.
+        let chance = (19..=21)
+            .map(|h| f.hourly.precipitation_probability[h].unwrap())
+            .fold(0.0, f64::max);
+        assert_eq!(today.hours[0].probability, Some(chance));
+        assert!(
+            days.iter()
+                .flat_map(|d| &d.hours)
+                .all(|h| h.probability.is_none_or(|p| p >= 20.0))
+        );
+        assert_eq!(days[2].hours[0].probability, None);
     }
 
     #[test]
