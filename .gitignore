@@ -9,3 +9,5 @@ applets/*/generated/
 # container build
 .cache/
 .image.*.stamp
+# python bytecode from the docs/*-mockups scripts
+__pycache__/
