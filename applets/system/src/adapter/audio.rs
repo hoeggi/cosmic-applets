@@ -62,7 +62,10 @@ pub fn subscription() -> Subscription<Update> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Node {
     pub id: u32,
+    /// Upstream's display name, "route - device" (e.g. "Analog Stereo - Pebble V3").
     pub name: String,
+    /// The device alone (e.g. "Pebble V3"), for places without room for the route.
+    pub device_name: String,
     pub is_sink: bool,
     pub volume: u32,
     pub mute: bool,
@@ -184,6 +187,12 @@ fn nodes(nodes: &model::Nodes, is_sink: bool) -> Vec<Node> {
         .map(|i| Node {
             id: nodes.id[i],
             name: nodes.display[i].to_string(),
+            device_name: nodes
+                .description
+                .get(i)
+                .filter(|d| !d.is_empty())
+                .cloned()
+                .unwrap_or_else(|| nodes.display[i].to_string()),
             is_sink,
             volume: nodes.volume[i],
             mute: nodes.mute[i],

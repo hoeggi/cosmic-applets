@@ -57,6 +57,15 @@ const TILE_RADIUS: f32 = 12.0;
 /// One quick-settings tile: one rounded background (the accent button colours when on, the
 /// standard button colours when off) holding two click areas: the body toggles, the chevron (if
 /// any) opens a page, with a thin divider between them.
+/// One line, cut with "…" at the end: tiles keep one height whatever the text.
+fn one_line<'a>(
+    t: cosmic::widget::Text<'a, cosmic::Theme>,
+) -> cosmic::widget::Text<'a, cosmic::Theme> {
+    use cosmic::iced::advanced::text::{Ellipsize, EllipsizeHeightLimit, Wrapping};
+    t.wrapping(Wrapping::None)
+        .ellipsize(Ellipsize::End(EllipsizeHeightLimit::Lines(1)))
+}
+
 pub fn tile<'a, M: Clone + 'static>(
     icon_name: &'a str,
     name: String,
@@ -69,8 +78,8 @@ pub fn tile<'a, M: Clone + 'static>(
         .push(icon::from_name(icon_name).size(16).symbolic(true).icon())
         .push(
             widget::Column::new()
-                .push(text::body(name).font(cosmic::font::semibold()))
-                .push(text::caption(status))
+                .push(one_line(text::body(name).font(cosmic::font::semibold())))
+                .push(one_line(text::caption(status)))
                 .width(Length::Fill),
         )
         .spacing(10)

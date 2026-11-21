@@ -47,7 +47,11 @@ impl AppModel {
     /// Body toggles mute; the chevron opens the Sound page.
     pub(super) fn output_tile(&self) -> Element<'_, Message> {
         let (icon, status, on) = match self.audio.sink() {
-            Some(sink) => (self.audio.node_icon(&sink), sink.name.clone(), !sink.mute),
+            Some(sink) => (
+                self.audio.node_icon(&sink),
+                sink.device_name.clone(),
+                !sink.mute,
+            ),
             None => ("audio-speakers-symbolic", fl!("no-output"), false),
         };
         ui::tile(
