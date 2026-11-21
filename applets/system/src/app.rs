@@ -31,6 +31,10 @@ pub const APP_ID: &str = "at.hoeggi.CosmicAppletSystem";
 
 /// Popup height limit; the compositor slides and flips popups but doesn't shrink them.
 const POPUP_MAX_HEIGHT: f32 = 900.0;
+/// Gap between the panel icons in a horizontal panel.
+const PANEL_SPACING_HORIZONTAL: u16 = 8;
+/// Gap between the panel icons in a vertical panel.
+const PANEL_SPACING_VERTICAL: u16 = 4;
 /// Restart, shut down and log out happen by themselves after this long.
 const CONFIRM_SECONDS: u64 = 60;
 
@@ -477,12 +481,12 @@ impl AppModel {
             .collect();
         let content: Element<'_, Message> = if horizontal {
             widget::Row::with_children(elements)
-                .spacing(4)
+                .spacing(PANEL_SPACING_HORIZONTAL)
                 .align_y(Alignment::Center)
                 .into()
         } else {
             widget::Column::with_children(elements)
-                .spacing(4)
+                .spacing(PANEL_SPACING_VERTICAL)
                 .align_x(Alignment::Center)
                 .into()
         };
