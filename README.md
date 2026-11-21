@@ -25,6 +25,7 @@ Then add the applet in **Settings → Desktop → Panel → Applets**.
     container/Containerfile builder image (Ubuntu 24.04 + Rust + cargo-deb)
     .github/workflows/      ci.yml (fmt, clippy, tests), release.yml (tag → .deb → GitHub release)
     docs/RELEASING.md       release procedure (also the /release agent skill)
+    docs/LICENSING.md       which license applies where, and what may go into common/
     AGENTS.md               guidance for coding agents (CLAUDE.md imports it)
 
 ## Build
@@ -60,6 +61,12 @@ By hand: add a `## [x.y.z] - date` section to `applets/<name>/CHANGELOG.md`, bum
 
 The release workflow checks that the tag matches the crate version, builds the `.deb`, and
 publishes a GitHub release. Its notes are that version's changelog section.
+
+## License
+
+The applets and `common/` are [MPL-2.0](LICENSE). An applet that builds on System76's
+GPL-3.0 applet code is GPL-3.0-only and says so in its own crate. See
+[docs/LICENSING.md](docs/LICENSING.md) for the details and the rules for `common/`.
 
 ## Adding an applet
 
