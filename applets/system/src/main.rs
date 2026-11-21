@@ -3,6 +3,7 @@
 mod app;
 mod config;
 mod i18n;
+mod power;
 // Some helpers are only used by later milestones.
 #[allow(dead_code)]
 mod ui;

@@ -19,9 +19,13 @@ i18n-embed.workspace = true
 i18n-embed-fl.workspace = true
 libcosmic.workspace = true
 rust-embed.workspace = true
+# getuid() for locking this user's sessions.
+rustix = { version = "1.1", features = ["process"] }
 serde.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+# The zbus libcosmic already uses; D-Bus to logind, UPower, BlueZ, NetworkManager.
+zbus = { version = "5.14", default-features = false, features = ["tokio"] }
 
 # `cargo deb -p cosmic-applet-system` (see `make deb`)
 [package.metadata.deb]

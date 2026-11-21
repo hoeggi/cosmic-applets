@@ -8,9 +8,9 @@ Design: `docs/system-mockups`. Licensing rules: `docs/LICENSING.md`.
 
 | # | Milestone | State | Commit |
 |---|---|---|---|
-| 1 | Scaffold: crate, license, packaging, panel button, page navigation, config | done | see git log |
-| 2 | Power buttons, confirmation with countdown | next | |
-| 3 | Audio: sliders, Output tile, Sound page | | |
+| 1 | Scaffold: crate, license, packaging, panel button, page navigation, config | done | d27c5fb |
+| 2 | Power buttons, confirmation with countdown, settings entry points | done | see git log |
+| 3 | Audio: sliders, Output tile, Sound page | next | |
 | 4 | Battery, power profiles, brightness | | |
 | 5 | Bluetooth | | |
 | 6 | Network, airplane mode | | |
@@ -40,13 +40,23 @@ Quick check (per commit; the full `make check test` gate runs before merging):
 - Verified licenses are in `docs/LICENSING.md`. The cosmic-settings subscription crates are
   MPL-2.0 but need a newer libcosmic than this workspace pins, so they aren't used.
 
-## Defaults chosen for open questions
+## Decisions
 
-- Settings open from the gear on the detail pages; the main popup has no gear. (Scaffold has a
-  temporary gear at the bottom of the main popup until the settings page lands.)
-- The network tile toggles the Wi-Fi radio but shows the icon and subtitle of the connection
-  in use.
-- Log out asks first like Restart and Shut down (the design only named the latter two).
+Decided by the user (2026-11-21):
+- Detail pages end with a link to the matching COSMIC Settings page ("Sound settings…",
+  "Network settings…", "Bluetooth settings…", "Power settings…"). Their headers have no gear;
+  refresh icons stay.
+- The main popup's button row has a sixth button after Shut down that opens COSMIC Settings.
+- The applet's own settings page opens from an "Applet settings…" row at the very bottom of
+  the main popup, and from a right click on the panel icon.
+- The network tile is neutral: named "Network", with the icon and subtitle of the connection
+  in use (SSID, "Ethernet", plus " · VPN"; "Disconnected" or "Off" otherwise). Clicking it only
+  opens the Network page; Wi-Fi on/off lives on that page. On desktops the VPN tile in the free
+  slot keeps its toggle and chevron.
+
+Chosen here (tell me if you want it different):
+- Log out asks first, like Restart and Shut down. Lock and Suspend act at once.
+- Closing the popup cancels a pending countdown.
 
 ## Not tested
 
