@@ -1,7 +1,10 @@
+// Copyright 2023 System76 <info@system76.com>
+// Copyright 2026 Daniel Hoeggerl
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! Battery (UPower), power profiles (power-profiles-daemon interface, also served by
-//! system76-power) and display brightness (cosmic-settings-daemon).
+//! system76-power) and display brightness (cosmic-settings-daemon). The charge limit uses
+//! system76-power's thresholds like cosmic-applet-battery, and UPower's only without it.
 
 use cosmic::iced::{Subscription, stream};
 use futures_util::{SinkExt, StreamExt, stream::select_all};
@@ -73,6 +76,36 @@ trait PowerProfiles {
     fn profiles(
         &self,
     ) -> zbus::Result<Vec<std::collections::HashMap<String, zbus::zvariant::OwnedValue>>>;
+}
+
+#[proxy(
+    interface = "com.system76.PowerDaemon",
+    default_service = "com.system76.PowerDaemon",
+    default_path = "/com/system76/PowerDaemon"
+)]
+trait PowerDaemon {
+    fn get_charge_thresholds(&self) -> zbus::Result<(u8, u8)>;
+    fn set_charge_thresholds(&self, thresholds: &(u8, u8)) -> zbus::Result<()>;
+}
+
+const POWER_DAEMON: &str = "com.system76.PowerDaemon";
+/// Thresholds (start, end) for "Limit charge to 80 %" and for charging fully, as upstream sets them.
+const LIMITED: (u8, u8) = (70, 80);
+const FULL: (u8, u8) = (90, 100);
+
+/// system76-power's thresholds count as a limit when charging stops before 100 %.
+fn s76_limited((start, end): (u8, u8)) -> bool {
+    end > start && end < 100
+}
+
+/// `Some` while system76-power owns its name on the bus.
+async fn power_daemon(connection: &Connection) -> Option<PowerDaemonProxy<'_>> {
+    let dbus = zbus::fdo::DBusProxy::new(connection).await.ok()?;
+    let name = zbus::names::BusName::try_from(POWER_DAEMON).ok()?;
+    if !dbus.name_has_owner(name).await.unwrap_or(false) {
+        return None;
+    }
+    PowerDaemonProxy::new(connection).await.ok()
 }
 
 #[proxy(
@@ -229,6 +262,16 @@ async fn read(connection: &Connection) -> zbus::Result<Battery> {
             }
         }
     }
+    if battery.present
+        && let Some(daemon) = power_daemon(connection).await
+    {
+        // system76-power wins over UPower; unsupported hardware fails the call.
+        battery.charge_limit = daemon
+            .get_charge_thresholds()
+            .await
+            .ok()
+            .map(|t| (s76_limited(t), u32::from(LIMITED.1)));
+    }
     if let Ok(profiles) = PowerProfilesProxy::new(connection).await {
         battery.profile = profiles.active_profile().await.ok();
         battery.profiles = profiles
@@ -317,6 +360,10 @@ pub async fn set_profile(profile: String) {
 pub async fn set_charge_limit(enabled: bool) {
     let result = async {
         let connection = Connection::system().await?;
+        if let Some(daemon) = power_daemon(&connection).await {
+            let thresholds = if enabled { LIMITED } else { FULL };
+            return daemon.set_charge_thresholds(&thresholds).await;
+        }
         let upower = UPowerProxy::new(&connection).await?;
         for path in upower.enumerate_devices().await? {
             let device = DeviceProxy::builder(&connection)
@@ -470,6 +517,14 @@ mod tests {
         assert_eq!(to_percent(24242, 24242), Some(100));
         assert_eq!(to_percent(12121, 24242), Some(50));
         assert_eq!(to_percent(5, 0), None);
+    }
+
+    #[test]
+    fn s76_thresholds() {
+        assert!(s76_limited(LIMITED));
+        assert!(!s76_limited(FULL));
+        assert!(!s76_limited((0, 100)), "the default (0, 100) is no limit");
+        assert!(s76_limited((40, 60)));
     }
 
     #[test]

@@ -23,7 +23,6 @@ Full gate (`fmt --check`, workspace clippy `-D warnings`, workspace tests) passe
 
 - Try it in the panel (`make deb` then install, or `make run APPLET=system`) and check every
   page; nothing has been seen on screen yet.
-- Charge limit through system76-power where UPower lacks it.
 - A Bluetooth pairing agent for PIN and passkey devices.
 - Decide whether the Microphone panel icon is worth a PipeWire query for recording streams.
 
@@ -46,6 +45,9 @@ Quick check (per commit; the full `make check test` gate runs before merging):
   zbus 5 proxies in `src/power.rs`, adapted from cosmic-applet-power (GPL).
 - Audio: cosmic-settings-daemon's varlink socket through `cosmic-settings-audio-client`
   (MPL-2.0), as upstream's audio applet does.
+- Charge limit: system76-power's charge thresholds, as cosmic-applet-battery does (on:
+  (70, 80), off: (90, 100); shown as limited when end > start and end < 100). UPower's
+  charge-threshold API is only used when system76-power isn't on the bus.
 - Battery, Bluetooth, network, brightness: zbus 5 bindings from `dbus-settings-bindings`
   (MPL-2.0 / MIT), the same revision libcosmic already pulls in.
 - Verified licenses are in `docs/LICENSING.md`. The cosmic-settings subscription crates are
@@ -84,9 +86,6 @@ Chosen here (tell me if you want it different):
   in the applet.
 - Section order uses up/down arrows instead of the mockup's drag handles.
 
-- Charge limit: uses UPower's charge-threshold API, which this machine's UPower 1.90.3 doesn't
-  expose, so the toggle stays hidden here. system76-power's `SetChargeThresholds` could back
-  it on Pop!_OS; not done.
 
 - Bluetooth pairing registers no agent of its own. Devices that need a PIN or a passkey
   confirmation only pair if another agent runs (e.g. COSMIC Settings' Bluetooth page); "Just
