@@ -3,6 +3,7 @@
 mod app;
 mod audio;
 mod battery;
+mod bluetooth;
 mod config;
 mod i18n;
 mod power;

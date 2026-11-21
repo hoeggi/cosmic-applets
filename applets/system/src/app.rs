@@ -2,6 +2,7 @@
 
 use crate::audio;
 use crate::battery as battery_backend;
+use crate::bluetooth as bt;
 use crate::config::{Config, Section};
 use crate::fl;
 use crate::power::PowerAction;
@@ -17,6 +18,7 @@ use cosmic_applet_common::{config as cfg, popup};
 use std::time::{Duration, Instant};
 
 mod battery;
+mod bluetooth;
 mod sound;
 
 pub const APP_ID: &str = "at.hoeggi.CosmicAppletSystem";
@@ -59,6 +61,8 @@ pub struct AppModel {
     /// Display brightness in percent; `None` without a backlight.
     brightness: Option<u32>,
     brightness_debounce: battery_backend::Debounced,
+    bluetooth: bt::Bluetooth,
+    bluetooth_tx: Option<tokio::sync::mpsc::UnboundedSender<bt::Command>>,
 }
 
 #[derive(Debug, Clone)]
@@ -89,6 +93,8 @@ pub enum Message {
     Brightness(u32),
     SetProfile(String),
     SetChargeLimit(bool),
+    BluetoothUpdate(bt::Update),
+    Bluetooth(bt::Command),
     /// A background task finished; nothing to do.
     Done,
 }
@@ -139,9 +145,7 @@ impl cosmic::Application for AppModel {
             Page::Network => {
                 self.view_placeholder(fl!("network"), fl!("network-settings"), "network")
             }
-            Page::Bluetooth => {
-                self.view_placeholder(fl!("bluetooth"), fl!("bluetooth-settings"), "bluetooth")
-            }
+            Page::Bluetooth => self.view_bluetooth(),
             Page::Settings => {
                 self.view_placeholder(fl!("applet-settings-title"), String::new(), "")
             }
@@ -157,6 +161,7 @@ impl cosmic::Application for AppModel {
             audio::subscription().map(Message::Audio),
             battery_backend::subscription().map(Message::BatteryChanged),
             battery_backend::brightness_subscription().map(Message::BrightnessChanged),
+            bt::subscription().map(Message::BluetoothUpdate),
         ];
         if self.confirm_deadline.is_some() {
             subs.push(cosmic::iced::time::every(Duration::from_secs(1)).map(Message::Tick));
@@ -169,7 +174,7 @@ impl cosmic::Application for AppModel {
             Message::TogglePopup => {
                 let task =
                     popup::toggle_with_max_height(&self.core, &mut self.popup, POPUP_MAX_HEIGHT);
-                self.page = Page::Main;
+                self.set_page(Page::Main);
                 self.confirm_deadline = None;
                 return task;
             }
@@ -178,13 +183,13 @@ impl cosmic::Application for AppModel {
                 if self.popup.is_none() {
                     // Closing the popup cancels a pending restart or shutdown.
                     self.confirm_deadline = None;
-                    self.page = Page::Main;
+                    self.set_page(Page::Main);
                 }
             }
             Message::UpdateConfig(config) => self.config = config,
-            Message::Open(page) => self.page = page,
+            Message::Open(page) => self.set_page(page),
             Message::OpenAppletSettings => {
-                self.page = Page::Settings;
+                self.set_page(Page::Settings);
                 if self.popup.is_none() {
                     return popup::toggle_with_max_height(
                         &self.core,
@@ -214,7 +219,7 @@ impl cosmic::Application for AppModel {
             }
             Message::CancelPower => {
                 self.confirm_deadline = None;
-                self.page = Page::Main;
+                self.set_page(Page::Main);
             }
             Message::Tick(now) => {
                 self.now = Some(now);
@@ -272,6 +277,9 @@ impl cosmic::Application for AppModel {
                     cosmic::Action::App(Message::Done)
                 });
             }
+            Message::BluetoothUpdate(bt::Update::Ready(tx)) => self.bluetooth_tx = Some(tx),
+            Message::BluetoothUpdate(bt::Update::State(state)) => self.bluetooth = state,
+            Message::Bluetooth(command) => self.bluetooth_command(command),
             Message::Done => {}
         }
         Task::none()
@@ -300,6 +308,17 @@ impl AppModel {
         self.config_ctx.as_ref()
     }
 
+    /// Switches pages; the Bluetooth page scans while it is open.
+    fn set_page(&mut self, page: Page) {
+        if self.page == Page::Bluetooth && page != Page::Bluetooth {
+            self.bluetooth_command(bt::Command::Scan(false));
+        } else if page == Page::Bluetooth && self.page != Page::Bluetooth && self.bluetooth.powered
+        {
+            self.bluetooth_command(bt::Command::Scan(true));
+        }
+        self.page = page;
+    }
+
     fn close_popup(&mut self) -> Task<cosmic::Action<Message>> {
         if self.popup.is_some() {
             return popup::toggle_with_max_height(&self.core, &mut self.popup, POPUP_MAX_HEIGHT);
@@ -309,7 +328,7 @@ impl AppModel {
 
     fn perform(&mut self, action: PowerAction) -> Task<cosmic::Action<Message>> {
         self.confirm_deadline = None;
-        self.page = Page::Main;
+        self.set_page(Page::Main);
         let close = self.close_popup();
         let run = Task::perform(action.perform(), |r| {
             cosmic::Action::App(Message::PowerDone(r))
@@ -373,14 +392,7 @@ impl AppModel {
                     Some(Message::Open(Page::Network)),
                     Some(Message::Open(Page::Network)),
                 )),
-                Section::Bluetooth => tiles.push(ui::tile(
-                    "bluetooth-active-symbolic",
-                    fl!("bluetooth"),
-                    String::new(),
-                    false,
-                    None,
-                    Some(Message::Open(Page::Bluetooth)),
-                )),
+                Section::Bluetooth => tiles.extend(self.bluetooth_tile()),
                 Section::Volume => {
                     if let Some(slider) = self.sink_slider() {
                         column = column.push(slider);

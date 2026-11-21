@@ -66,3 +66,18 @@ profile-performance = Performance
 profile-power-saver-description = Lower performance, longer runtime
 profile-balanced-description = Standard performance and power use
 profile-performance-description = Higher performance and power use
+
+# Bluetooth
+on = On
+off = Off
+devices-connected = { $count } connected
+my-devices = My devices
+nearby = Nearby
+searching = Searching…
+pair = Pair
+connect = Connect
+disconnect = Disconnect
+connected = Connected
+connected-battery = Connected · { $percent }%
+not-connected = Not connected
+bluetooth-unavailable = No Bluetooth adapter found.

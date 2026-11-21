@@ -11,9 +11,9 @@ Design: `docs/system-mockups`. Licensing rules: `docs/LICENSING.md`.
 | 1 | Scaffold: crate, license, packaging, panel button, page navigation, config | done | d27c5fb |
 | 2 | Power buttons, confirmation with countdown, settings entry points | done | 6c29c50 |
 | 3 | Audio: sliders, Output tile, Sound page, scroll on the panel icon | done | 2ce2cee |
-| 4 | Battery header and page, power profiles, charge limit, peripherals, brightness | done | see git log |
-| 5 | Bluetooth | next | |
-| 6 | Network, airplane mode | | |
+| 4 | Battery header and page, power profiles, charge limit, peripherals, brightness | done | 2379add |
+| 5 | Bluetooth tile and page: power, paired devices, scan, pair, connect | done | see git log |
+| 6 | Network, airplane mode | next | |
 | 7 | Panel icons, alerts, settings page | | |
 
 ## How to run and check
@@ -59,12 +59,18 @@ Chosen here (tell me if you want it different):
   panel icon changes the volume in 5 % steps.
 - Log out asks first, like Restart and Shut down. Lock and Suspend act at once.
 - Closing the popup cancels a pending countdown.
+- The Bluetooth tile's body switches Bluetooth on and off. The Bluetooth page scans while it is
+  open and stops when it is left or the popup closes.
 
 ## Known gaps
 
 - Charge limit: uses UPower's charge-threshold API, which this machine's UPower 1.90.3 doesn't
   expose, so the toggle stays hidden here. system76-power's `SetChargeThresholds` could back
   it on Pop!_OS; not done.
+
+- Bluetooth pairing registers no agent of its own. Devices that need a PIN or a passkey
+  confirmation only pair if another agent runs (e.g. COSMIC Settings' Bluetooth page); "Just
+  works" devices pair directly.
 
 ## Lockfile
 
