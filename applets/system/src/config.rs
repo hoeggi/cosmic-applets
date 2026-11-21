@@ -15,18 +15,21 @@ pub enum Section {
     /// The Wi-Fi (or wired) tile and airplane mode.
     Network,
     Bluetooth,
+    /// One row per running media player, between the tiles and the power row.
+    Media,
     /// Lock, log out, suspend, restart and shut down.
     PowerButtons,
 }
 
 impl Section {
-    pub const ALL: [Section; 7] = [
+    pub const ALL: [Section; 8] = [
         Section::Battery,
         Section::Volume,
         Section::Microphone,
         Section::Brightness,
         Section::Network,
         Section::Bluetooth,
+        Section::Media,
         Section::PowerButtons,
     ];
 }
@@ -148,7 +151,7 @@ mod tests {
         assert_eq!(visible[0], Section::Volume);
         assert!(!visible.contains(&Section::Battery));
         // The duplicate entry is ignored, the rest are appended in their default order.
-        assert_eq!(visible.len(), 6);
+        assert_eq!(visible.len(), 7);
         assert_eq!(visible[1], Section::Microphone);
     }
 }

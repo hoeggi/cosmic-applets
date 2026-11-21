@@ -17,6 +17,7 @@ workspace's libcosmic (`dd108aa`) matches that commit's `Cargo.lock`.
 | Upstream (at `ecb6b61`) | Here | How |
 |---|---|---|
 | `cosmic-applet-audio/src/model.rs` | `src/upstream/audio/model.rs` | Verbatim: nodes named from their active route, unplugged inputs removed, sorted lists, the default device's volume and mute. |
+| `cosmic-applet-audio/src/mpris_subscription.rs` | `src/upstream/audio/mpris_subscription.rs` | The MPRIS subscription, with marked additions that report every player. |
 | `cosmic-applet-audio/src/lib.rs` | `src/upstream/audio/icons.rs` | `output_icon_name` and `input_icon_name` as free functions. |
 | `cosmic-applet-battery/src/backend/mod.rs`, `power_daemon.rs`, `power_profiles.rs` | `src/upstream/battery/` (same names) | Verbatim: power profiles (system76-power, then power-profiles-daemon) and the system76-power charge limit. |
 | `cosmic-applet-battery/src/app.rs` | `src/upstream/battery/app.rs` | `update_battery` (icon), `screen_brightness_percent`, `update_display` (brightness icon) and the `SetScreenBrightness` snapping, as free functions. |
@@ -29,6 +30,9 @@ Adapters:
   `set_source_volume` 128 ms after the last slider change, `sink_mute_toggle` /
   `source_mute_toggle`, `set_default`, one wheel step per 192 ms), and our device lists from
   upstream's model. Ours in it: the device icons, which upstream's popup doesn't show.
+- `src/adapter/media.rs`: one row per player from the `Players` update, upstream's `is_play`
+  and title/artist trimming, and upstream's requests (`play`, `pause`, `next`, `previous`,
+  `raise`) sent to the player of that row instead of the active one.
 - `src/adapter/battery.rs`: upstream's battery handlers (UPower display device through
   `cosmic-settings-upower-subscription`, power profiles, charge limit, brightness through
   `cosmic-settings-daemon-subscription` with upstream's 200 ms send loop while dragging), and
@@ -57,6 +61,15 @@ Adapters:
 
 `src/upstream/audio/mod.rs`:
 - `#[allow(dead_code)]` on `mod model` so `model.rs` stays verbatim.
+
+`src/upstream/audio/mpris_subscription.rs` (upstream reports only the active player; the
+active-player logic is untouched):
+- `MprisUpdate::Players(Vec<ListedPlayer>)` and `ListedPlayer` (status plus MediaPlayer2
+  identity): every player in upstream's order, sent after each `Player` / `Setup` update.
+- `State::any_player_metadata_stream`, filled in `update_any_player_state_stream`, and its arm
+  in `run`'s `select!`: wakes up when any player's metadata or controls change.
+- `State::listed_players`; `MprisPlayer::media_player` loses its `#[allow(dead_code)]`.
+- In `mod.rs`: `#[allow(dead_code)]` on the module (the `Player` update isn't read by us).
 
 `src/upstream/audio/icons.rs`:
 - Upstream's methods as free functions taking volume and mute; bodies unchanged.

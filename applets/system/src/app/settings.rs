@@ -245,6 +245,7 @@ fn section_name(section: Section) -> String {
         Section::Brightness => fl!("brightness"),
         Section::Network => fl!("network"),
         Section::Bluetooth => fl!("bluetooth"),
+        Section::Media => fl!("media-controls"),
         Section::PowerButtons => fl!("power-buttons"),
     }
 }
@@ -257,6 +258,7 @@ fn section_icon(section: Section) -> &'static str {
         Section::Brightness => "display-brightness-symbolic",
         Section::Network => "network-wireless-signal-excellent-symbolic",
         Section::Bluetooth => "bluetooth-active-symbolic",
+        Section::Media => "media-playback-start-symbolic",
         Section::PowerButtons => "system-shutdown-symbolic",
     }
 }

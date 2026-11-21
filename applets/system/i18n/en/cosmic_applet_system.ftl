@@ -117,3 +117,7 @@ battery-percentage = Battery percentage
 show-alerts = Show alerts
 show-alerts-description = Unpicked icons appear in red while something needs attention
 confirm-shutdown-setting = Ask before shutting down
+
+# Media controls
+media-controls = Media controls
+unknown-artist = Unknown artist

@@ -3,6 +3,7 @@
 use crate::adapter::audio;
 use crate::adapter::battery as battery_backend;
 use crate::adapter::bluetooth as bt;
+use crate::adapter::media as mpris;
 use crate::adapter::network as net;
 use crate::config::{Config, Section};
 use crate::fl;
@@ -21,6 +22,7 @@ use std::time::{Duration, Instant};
 
 mod battery;
 mod bluetooth;
+mod media;
 mod network;
 mod settings;
 mod sound;
@@ -61,6 +63,8 @@ pub struct AppModel {
     audio: audio::Model,
     sink_volume: audio::Delayed,
     source_volume: audio::Delayed,
+    /// Every running media player.
+    media: mpris::Model,
     /// Upstream's battery, profile and brightness state; `battery` is our view of it.
     battery_model: battery_backend::Model,
     battery: battery_backend::Battery,
@@ -100,6 +104,12 @@ pub enum Message {
     ToggleSourceMute,
     SetDefault(u32),
     BatteryEvent(battery_backend::Event),
+    Media(crate::upstream::audio::mpris_subscription::MprisUpdate),
+    /// A request for one player, by its bus name.
+    MediaRequest(
+        String,
+        crate::upstream::audio::mpris_subscription::MprisRequest,
+    ),
     Brightness(u32),
     BrightnessDebounced,
     BrightnessReleased,
@@ -186,6 +196,7 @@ impl cosmic::Application for AppModel {
             audio::subscription().map(Message::Audio),
             battery_backend::subscription(self.battery_model.session.as_ref())
                 .map(Message::BatteryEvent),
+            mpris::subscription().map(Message::Media),
             bt::subscription().map(Message::BluetoothUpdate),
             net::subscription().map(Message::NetworkUpdate),
         ];
@@ -275,6 +286,8 @@ impl cosmic::Application for AppModel {
             Message::ToggleSinkMute => return audio_task(audio::Command::ToggleSinkMute),
             Message::ToggleSourceMute => return audio_task(audio::Command::ToggleSourceMute),
             Message::SetDefault(id) => return audio_task(audio::Command::SetDefault(id)),
+            Message::Media(update) => self.media.update(update),
+            Message::MediaRequest(id, request) => self.media.request(&id, request),
             Message::BatteryEvent(event) => {
                 self.battery_model.event(event);
                 self.battery = self.battery_model.view();
@@ -502,6 +515,7 @@ impl AppModel {
         let mut column = widget::Column::new().padding([8, 0]);
         let mut tiles = Vec::new();
         let mut power_buttons = false;
+        let mut media = false;
         // Airplane (or VPN on machines without Wi-Fi) goes last among the tiles.
         let mut second = None;
         for section in self.config.visible_sections() {
@@ -528,6 +542,7 @@ impl AppModel {
                     }
                 }
                 Section::PowerButtons => power_buttons = true,
+                Section::Media => media = true,
                 Section::Brightness => {
                     if let Some(slider) = self.brightness_slider() {
                         column = column.push(slider);
@@ -540,6 +555,14 @@ impl AppModel {
             column = column.push(ui::tile_grid(tiles));
         }
         column = column.push(section_divider());
+        // One row per player; no rows and no extra divider without players.
+        let rows = if media { self.media_rows() } else { Vec::new() };
+        if !rows.is_empty() {
+            for row in rows {
+                column = column.push(row);
+            }
+            column = column.push(section_divider());
+        }
         if power_buttons {
             column = column
                 .push(self.view_power_row(None))
