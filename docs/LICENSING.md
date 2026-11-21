@@ -58,7 +58,9 @@ The MPL-2.0 text is in [`LICENSE`](../LICENSE). A GPL applet ships the GPL-3.0 t
 | `cosmic-settings-audio-client` / `-audio-core` (from `cosmic-settings-daemon`) | MPL-2.0 (verified) | yes |
 | `cosmic-settings-daemon` itself, its `audio-server` and `varlink-server` | GPL-3.0 (verified) | no; not a dependency, the applet only talks to the running daemon |
 | `cosmic-settings` subscriptions (`-upower-subscription`, `-bluetooth-subscription`, …) | MPL-2.0 (verified) | yes, but they need a newer libcosmic than this workspace pins, so they aren't used |
-| `bluer`, `nmrs` | not checked | not used: the system applet talks to BlueZ and NetworkManager through the zbus bindings above |
+| `nmrs` 3.5 (NetworkManager, as upstream's network applet) | MIT (verified) | yes |
+| `secure-string` (passwords in upstream's network model) | Unlicense (verified) | yes |
+| `indexmap` | Apache-2.0 OR MIT (verified) | yes |
 
 Check a crate's `license` field before adding it to `common/`, and update this table.
 

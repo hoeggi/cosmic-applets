@@ -3,9 +3,8 @@
 //! The Network and Airplane tiles, and the Network page (wired, Wi-Fi, VPN).
 
 use super::{AppModel, Message, Page};
-use crate::bluetooth;
+use crate::adapter::network::{self, AccessPointInfo, Command, Network, Primary};
 use crate::fl;
-use crate::network::{self, AccessPointInfo, Command, Network, Primary};
 use crate::ui;
 use cosmic::applet::padded_control;
 use cosmic::iced::Length;
@@ -14,10 +13,9 @@ use cosmic::widget::{self, button, icon, text};
 use cosmic_applet_common::widgets::{icon_button, section_divider};
 
 /// A new secured network waiting for its password.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct PasswordPrompt {
-    pub ssid: String,
-    pub ap: String,
+    pub ap: crate::upstream::network::AccessPoint,
     pub password: String,
 }
 
@@ -28,32 +26,27 @@ impl AppModel {
         }
     }
 
-    /// Airplane mode: Wi-Fi off and Bluetooth off (or absent).
+    /// NetworkManager's airplane mode: every present radio (Wi-Fi, mobile broadband, Bluetooth)
+    /// is off, as upstream's network applet shows it.
     pub(super) fn airplane(&self) -> bool {
-        let net = &self.network;
-        let bt = &self.bluetooth;
-        net.has_wifi && !net.wifi_enabled && (!bt.available || !bt.powered)
+        self.network.airplane_mode
     }
 
+    /// Switches all radios in one call, rfkill included, like upstream.
     pub(super) fn set_airplane(&self, on: bool) {
         self.network_command(Command::Airplane(on));
-        if self.bluetooth.available {
-            self.bluetooth_command(bluetooth::Command::SetPowered(!on));
-        }
     }
 
     pub(super) fn select_network(&mut self, ap: &AccessPointInfo) {
         if ap.known || !ap.secured {
             self.password_prompt = None;
             self.network_command(Command::ConnectWifi {
-                ssid: ap.ssid.clone(),
-                ap: ap.path.clone(),
+                ap: ap.ap.clone(),
                 password: None,
             });
         } else {
             self.password_prompt = Some(PasswordPrompt {
-                ssid: ap.ssid.clone(),
-                ap: ap.path.clone(),
+                ap: ap.ap.clone(),
                 password: String::new(),
             });
         }
@@ -62,7 +55,6 @@ impl AppModel {
     pub(super) fn submit_password(&mut self) {
         if let Some(prompt) = self.password_prompt.take() {
             self.network_command(Command::ConnectWifi {
-                ssid: prompt.ssid,
                 ap: prompt.ap,
                 password: Some(prompt.password),
             });
@@ -106,7 +98,7 @@ impl AppModel {
             vpn.name.clone(),
             vpn.connected,
             Some(Message::Network(Command::SetVpn(
-                vpn.path.clone(),
+                vpn.uuid.clone(),
                 !vpn.connected,
             ))),
             Some(Message::Open(Page::Network)),
@@ -132,17 +124,25 @@ impl AppModel {
                 .push(ui::note(fl!("network-unavailable")))
                 .into();
         }
-        let both = net.wired.as_ref().is_some_and(|w| w.connected) && net.wifi.is_some();
-        if let Some(wired) = &net.wired {
-            let subtitle = match (wired.connected, wired.speed) {
-                (true, Some(speed)) => fl!("connected-speed", speed = speed_text(speed)),
-                (true, None) => fl!("connected"),
-                (false, _) => fl!("cable-unplugged"),
-            };
+        let both = net.wired_connected() && net.wifi.is_some();
+        if !net.wired.is_empty() {
             column = column
                 .push(section_divider())
-                .push(ui::section_title(fl!("wired"), None))
-                .push(ui::choice_row(
+                .push(ui::section_title(fl!("wired"), None));
+            let several = net.wired.len() > 1;
+            for wired in &net.wired {
+                let state = match (wired.connected, wired.speed) {
+                    (true, Some(speed)) => fl!("connected-speed", speed = speed_text(speed)),
+                    (true, None) => fl!("connected"),
+                    (false, _) => fl!("cable-unplugged"),
+                };
+                // With several ports, the interface name tells them apart.
+                let subtitle = if several {
+                    format!("{} · {state}", wired.interface)
+                } else {
+                    state
+                };
+                column = column.push(ui::choice_row(
                     "network-wired-symbolic",
                     fl!("ethernet"),
                     Some(subtitle),
@@ -150,6 +150,7 @@ impl AppModel {
                     in_use_pill(both && wired.in_use),
                     None,
                 ));
+            }
         }
         if net.has_wifi {
             column = column.push(section_divider()).push(ui::section_title(
@@ -165,7 +166,7 @@ impl AppModel {
                     let subtitle = if both && !wifi.in_use {
                         fl!("connected-standby")
                     } else {
-                        fl!("connected-speed", speed = speed_text(wifi.bitrate))
+                        fl!("connected")
                     };
                     let mut trailing = in_use_pill(both && wifi.in_use);
                     if wifi.secured {
@@ -198,17 +199,14 @@ impl AppModel {
                 .push(section_divider())
                 .push(ui::section_title(fl!("vpn"), None));
             for vpn in &net.vpns {
-                let subtitle = match (vpn.connected, vpn.active.is_some()) {
-                    (true, _) => match net.primary {
-                        Primary::Wired => fl!("connected-via", link = fl!("ethernet")),
-                        Primary::Wifi => fl!("connected-via", link = fl!("wifi")),
-                        _ => fl!("connected"),
-                    },
-                    (false, true) => fl!("connecting"),
-                    (false, false) => fl!("off"),
+                let subtitle = match (vpn.connected, net.primary) {
+                    (true, Primary::Wired) => fl!("connected-via", link = fl!("ethernet")),
+                    (true, Primary::Wifi) => fl!("connected-via", link = fl!("wifi")),
+                    (true, Primary::None) => fl!("connected"),
+                    (false, _) => fl!("off"),
                 };
-                let toggle = widget::toggler(vpn.connected || vpn.active.is_some())
-                    .on_toggle(|on| Message::Network(Command::SetVpn(vpn.path.clone(), on)))
+                let toggle = widget::toggler(vpn.connected)
+                    .on_toggle(|on| Message::Network(Command::SetVpn(vpn.uuid.clone(), on)))
                     .into();
                 column = column.push(ui::choice_row(
                     "network-vpn-symbolic",
@@ -230,7 +228,11 @@ impl AppModel {
     }
 
     fn access_point_row<'a>(&'a self, ap: &'a AccessPointInfo) -> Element<'a, Message> {
-        if let Some(prompt) = self.password_prompt.as_ref().filter(|p| p.ssid == ap.ssid) {
+        if let Some(prompt) = self
+            .password_prompt
+            .as_ref()
+            .filter(|p| *p.ap.ssid == *ap.ssid)
+        {
             let input = widget::secure_input(fl!("password"), prompt.password.clone(), None, true)
                 .on_input(Message::PasswordInput)
                 .on_submit(|_| Message::PasswordSubmit)
@@ -275,8 +277,7 @@ fn network_status(net: &Network) -> String {
     let base = match (net.primary, &net.wifi) {
         (Primary::Wired, _) => fl!("ethernet"),
         (Primary::Wifi, Some(wifi)) => wifi.ssid.clone(),
-        (Primary::Other, _) => fl!("connected"),
-        _ if net.has_wifi && !net.wifi_enabled && net.wired.is_none() => fl!("off"),
+        _ if net.has_wifi && !net.wifi_enabled && net.wired.is_empty() => fl!("off"),
         _ => fl!("disconnected"),
     };
     if net.vpn_connected() {
@@ -317,7 +318,7 @@ fn lock_icon<'a>() -> Element<'a, Message> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::network::{ActiveWifi, Vpn};
+    use crate::adapter::network::{ActiveWifi, Vpn};
 
     #[test]
     fn status_names_the_link_in_use_and_vpn() {
@@ -330,7 +331,6 @@ mod tests {
                 ssid: "Home-5G".into(),
                 strength: 80,
                 secured: true,
-                bitrate: 866,
                 in_use: true,
             }),
             ..Network::default()
@@ -339,8 +339,7 @@ mod tests {
         net.primary = Primary::Wired;
         net.vpns.push(Vpn {
             name: "Office".into(),
-            path: "/s/1".into(),
-            active: Some("/a/1".into()),
+            uuid: "uuid-1".into(),
             connected: true,
         });
         assert_eq!(network_status(&net), "Ethernet · VPN");

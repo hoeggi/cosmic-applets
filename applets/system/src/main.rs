@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
+mod adapter;
 mod app;
 mod audio;
 mod battery;
 mod bluetooth;
 mod config;
 mod i18n;
-mod network;
 mod panel;
 mod power;
 mod ui;
+mod upstream;
 
 fn main() -> cosmic::iced::Result {
     cosmic_applet_common::init_logging("cosmic_applet_system");

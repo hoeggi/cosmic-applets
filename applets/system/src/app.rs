@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::adapter::network as net;
 use crate::audio;
 use crate::battery as battery_backend;
 use crate::bluetooth as bt;
 use crate::config::{Config, Section};
 use crate::fl;
-use crate::network as net;
 use crate::panel;
 use crate::power::PowerAction;
 use crate::ui;
@@ -299,8 +299,8 @@ impl cosmic::Application for AppModel {
             Message::NetworkUpdate(net::Update::Ready(tx)) => self.network_tx = Some(tx),
             Message::NetworkUpdate(net::Update::State(state)) => self.network_changed(*state),
             Message::Network(command) => {
-                if let net::Command::SetVpn(path, false) = &command {
-                    self.vpn_switched_off.push(path.clone());
+                if let net::Command::SetVpn(uuid, false) = &command {
+                    self.vpn_switched_off.push(uuid.clone());
                 }
                 self.vpn_dropped = false;
                 self.network_command(command);
@@ -369,8 +369,8 @@ impl AppModel {
             let still_up = state
                 .vpns
                 .iter()
-                .any(|v| v.path == before.path && v.connected);
-            if !still_up && !self.vpn_switched_off.contains(&before.path) {
+                .any(|v| v.uuid == before.uuid && v.connected);
+            if !still_up && !self.vpn_switched_off.contains(&before.uuid) {
                 tracing::warn!(vpn = before.name, "VPN dropped");
                 self.vpn_dropped = true;
             }
@@ -378,12 +378,8 @@ impl AppModel {
         if state.vpn_connected() {
             self.vpn_dropped = false;
         }
-        self.vpn_switched_off.retain(|path| {
-            state
-                .vpns
-                .iter()
-                .any(|v| &v.path == path && v.active.is_some())
-        });
+        self.vpn_switched_off
+            .retain(|uuid| state.vpns.iter().any(|v| &v.uuid == uuid && v.connected));
         self.network = state;
     }
 

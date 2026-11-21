@@ -1043,9 +1043,12 @@ dependencies = [
  "futures-util",
  "i18n-embed",
  "i18n-embed-fl",
+ "indexmap 2.14.2",
  "libcosmic",
+ "nmrs",
  "rust-embed",
  "rustix 1.1.6",
+ "secure-string",
  "serde",
  "tokio",
  "tracing",
@@ -2013,11 +2016,11 @@ dependencies = [
 
 [[package]]
 name = "freedesktop_entry_parser"
-version = "2.0.1"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b368437186ec63ceb50d0832ee1ebcb5878037fe16ead1c68081d4aee0d140a"
+checksum = "fc6d3a3635983a889f065aa9ce760384713f23a9b4a04f696f86c39a5d7a6a5a"
 dependencies = [
- "indexmap 2.11.4",
+ "indexmap 2.14.2",
  "nom",
 ]
 
@@ -2110,6 +2113,12 @@ name = "futures-task"
 version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd417de3d1d015fc3bfd2b1ea46dfc7bab72ef86f1cc7cc9c78e728b34a6d1fd"
+
+[[package]]
+name = "futures-timer"
+version = "3.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af43fadb8a98512d547e37b4e92e0ced13e205c061b87b4623eff01d918d6968"
 
 [[package]]
 name = "futures-util"
@@ -2349,6 +2358,12 @@ dependencies = [
  "equivalent",
  "foldhash 0.2.0",
 ]
+
+[[package]]
+name = "hashbrown"
+version = "0.17.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 
 [[package]]
 name = "heck"
@@ -2998,12 +3013,12 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.11.4"
+version = "2.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b0f83760fb341a774ed326568e19f5a863af4a952def8c39f9ab92fd95b88e5"
+checksum = "cc4e190f5d26ca7051642629da2c52fc03bde85a03197c99408dcd291734c855"
 dependencies = [
  "equivalent",
- "hashbrown 0.16.1",
+ "hashbrown 0.17.1",
  "serde",
  "serde_core",
 ]
@@ -3502,9 +3517,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.34"
+version = "0.4.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
+checksum = "5d15f86d12da44cd8d4ec3c73984537eb7f4cadcb9776a575a0a8a05ca11005c"
 
 [[package]]
 name = "lru"
@@ -3747,7 +3762,7 @@ dependencies = [
  "half",
  "hashbrown 0.16.1",
  "hexf-parse",
- "indexmap 2.11.4",
+ "indexmap 2.14.2",
  "libm",
  "log",
  "num-traits",
@@ -3786,6 +3801,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee6cda3051665f1fb8d9e08fc35c96d5a244fb1be711a03b71118828afc9a873"
 dependencies = [
  "jni-sys 0.3.1",
+]
+
+[[package]]
+name = "nmrs"
+version = "3.5.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "716bc7bc3fc6d0fbf543047535b3109a0526114524dc8d7e484a06e9e27b9fe2"
+dependencies = [
+ "base64 0.23.1",
+ "bitflags 2.13.2",
+ "futures",
+ "futures-timer",
+ "log",
+ "serde",
+ "thiserror 2.0.21",
+ "tokio",
+ "uuid",
+ "zbus 5.19.0",
+ "zvariant",
 ]
 
 [[package]]
@@ -5322,6 +5356,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "secure-string"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "548ba8c9ff631f7bb3a64de1e8ad73fe20f6d04090724f2b496ed45314ad7488"
+dependencies = [
+ "libc",
+ "zeroize",
+]
+
+[[package]]
 name = "security-framework"
 version = "3.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5403,7 +5447,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e7e9cc8b1b85264074fbcc02a88680c4096b1e47df8f739dceb03bf482f04bd6"
 dependencies = [
  "foldhash 0.2.0",
- "indexmap 2.11.4",
+ "indexmap 2.14.2",
  "itoa",
  "memchr",
  "serde",
@@ -5445,7 +5489,7 @@ dependencies = [
  "chrono",
  "hex",
  "indexmap 1.9.3",
- "indexmap 2.11.4",
+ "indexmap 2.14.2",
  "jiff 0.2.37",
  "jiff 1.0.2",
  "schemars 0.9.0",
@@ -5467,6 +5511,12 @@ dependencies = [
  "quote",
  "syn 3.0.6",
 ]
+
+[[package]]
+name = "sha1_smol"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbfa15b3dddfee50a0fff136974b3e1bde555604ba463834a7eb7deb6417705d"
 
 [[package]]
 name = "sha2"
@@ -6111,7 +6161,7 @@ version = "0.25.6+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0db3bae107c9522f86d361697dee1d7386a2ddcf659d5aea5159819a21a3c4a7"
 dependencies = [
- "indexmap 2.11.4",
+ "indexmap 2.14.2",
  "toml_datetime",
  "toml_parser",
  "winnow 1.0.4",
@@ -6418,13 +6468,14 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 
 [[package]]
 name = "uuid"
-version = "1.27.0"
+version = "1.29.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97277d36b9c3ace13e58fa6e753f8b0bbbf302a18dd193240d70f9e29681059a"
+checksum = "3c14b15dffa2f4bd712103e857140aa04a4f2ff6e955c77d7eb8e53ee02a3b64"
 dependencies = [
  "getrandom 0.4.3",
  "js-sys",
  "serde_core",
+ "sha1_smol",
  "wasm-bindgen",
 ]
 
@@ -6773,7 +6824,7 @@ dependencies = [
  "cfg_aliases",
  "document-features",
  "hashbrown 0.16.1",
- "indexmap 2.11.4",
+ "indexmap 2.14.2",
  "log",
  "naga",
  "once_cell",
@@ -8135,9 +8186,9 @@ dependencies = [
 
 [[package]]
 name = "zvariant"
-version = "5.15.0"
+version = "5.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1d34c27cc6cdd1f458427519dd6b8612f7b7e3f7b9a0b2355d041dda9869147"
+checksum = "80bf6d6cd6a4b601acb64cfb8284cdc643fcfa75ef26ae3c46ec8aa4e8a1fbb7"
 dependencies = [
  "endi",
  "enumflags2",
