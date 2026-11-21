@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! The applet's own settings: popup sections and their order, panel icons, alerts, and
-//! shutdown confirmation.
+//! The applet's own settings: what the popup shows (battery header, sliders and tiles in their
+//! order, media controls, power buttons), panel icons, alerts, and shutdown confirmation.
 
 use super::{AppModel, Message, Page};
-use crate::config::{Config, PanelIcons, Section, SectionEntry};
+use crate::config::{Config, Entry, PanelIcons, Slider, Tile, move_entry};
 use crate::fl;
 use crate::ui;
 use cosmic::applet::padded_control;
@@ -27,26 +27,17 @@ pub enum PanelIcon {
 
 #[derive(Debug, Clone)]
 pub enum SettingsMessage {
-    Move(usize, bool),
-    Enable(usize, bool),
+    BatteryHeader(bool),
+    MoveSlider(usize, bool),
+    EnableSlider(usize, bool),
+    MoveTile(usize, bool),
+    EnableTile(usize, bool),
+    MediaControls(bool),
+    PowerButtons(bool),
     Icon(PanelIcon, bool),
     BatteryPercentage(bool),
     ShowAlerts(bool),
     ConfirmShutdown(bool),
-}
-
-/// Moves the entry at `index` one up (or down); no-op at the ends.
-pub fn move_section(sections: &mut [SectionEntry], index: usize, up: bool) {
-    let other = if up {
-        index.checked_sub(1)
-    } else {
-        Some(index + 1)
-    };
-    if let Some(other) = other.filter(|o| *o < sections.len())
-        && index < sections.len()
-    {
-        sections.swap(index, other);
-    }
 }
 
 impl AppModel {
@@ -59,18 +50,33 @@ impl AppModel {
 
     pub(super) fn update_settings(&mut self, message: SettingsMessage) {
         match message {
-            SettingsMessage::Move(index, up) => {
-                let mut sections = self.normalized_sections();
-                move_section(&mut sections, index, up);
-                self.save(|c, ctx| c.set_sections(ctx, sections));
+            SettingsMessage::BatteryHeader(on) => self.save(|c, ctx| c.set_battery_header(ctx, on)),
+            SettingsMessage::MoveSlider(index, up) => {
+                let mut sliders = self.config.slider_entries();
+                move_entry(&mut sliders, index, up);
+                self.save(|c, ctx| c.set_sliders(ctx, sliders));
             }
-            SettingsMessage::Enable(index, enabled) => {
-                let mut sections = self.normalized_sections();
-                if let Some(entry) = sections.get_mut(index) {
-                    entry.enabled = enabled;
+            SettingsMessage::EnableSlider(index, on) => {
+                let mut sliders = self.config.slider_entries();
+                if let Some(entry) = sliders.get_mut(index) {
+                    entry.enabled = on;
                 }
-                self.save(|c, ctx| c.set_sections(ctx, sections));
+                self.save(|c, ctx| c.set_sliders(ctx, sliders));
             }
+            SettingsMessage::MoveTile(index, up) => {
+                let mut tiles = self.config.tile_entries();
+                move_entry(&mut tiles, index, up);
+                self.save(|c, ctx| c.set_tiles(ctx, tiles));
+            }
+            SettingsMessage::EnableTile(index, on) => {
+                let mut tiles = self.config.tile_entries();
+                if let Some(entry) = tiles.get_mut(index) {
+                    entry.enabled = on;
+                }
+                self.save(|c, ctx| c.set_tiles(ctx, tiles));
+            }
+            SettingsMessage::MediaControls(on) => self.save(|c, ctx| c.set_media_controls(ctx, on)),
+            SettingsMessage::PowerButtons(on) => self.save(|c, ctx| c.set_power_buttons(ctx, on)),
             SettingsMessage::Icon(which, on) => {
                 let mut icons = self.config.panel_icons;
                 match which {
@@ -92,25 +98,6 @@ impl AppModel {
         }
     }
 
-    /// Every section exactly once, in the configured order, so moving works on old configs too.
-    fn normalized_sections(&self) -> Vec<SectionEntry> {
-        let mut out: Vec<SectionEntry> = Vec::new();
-        for entry in &self.config.sections {
-            if !out.iter().any(|e| e.section == entry.section) {
-                out.push(*entry);
-            }
-        }
-        for section in Section::ALL {
-            if !out.iter().any(|e| e.section == section) {
-                out.push(SectionEntry {
-                    section,
-                    enabled: true,
-                });
-            }
-        }
-        out
-    }
-
     pub(super) fn view_settings(&self) -> Element<'_, Message> {
         let mut column = widget::Column::new()
             .padding([8, 0])
@@ -121,38 +108,48 @@ impl AppModel {
                 Vec::new(),
             ))
             .push(section_divider())
-            .push(ui::group_label(fl!("sections-in-order")));
-        let sections = self.normalized_sections();
-        let last = sections.len().saturating_sub(1);
-        for (index, entry) in sections.iter().enumerate() {
-            let arrow = |name: &'static str, enabled: bool, up: bool| {
-                button::icon(icon::from_name(name))
-                    .extra_small()
-                    .on_press_maybe(
-                        enabled.then_some(Message::Settings(SettingsMessage::Move(index, up))),
-                    )
-            };
-            column = column.push(
-                padded_control(
-                    widget::Row::new()
-                        .push(
-                            icon::from_name(section_icon(entry.section))
-                                .size(16)
-                                .symbolic(true)
-                                .icon(),
-                        )
-                        .push(text::body(section_name(entry.section)).width(Length::Fill))
-                        .push(arrow("go-up-symbolic", index > 0, true))
-                        .push(arrow("go-down-symbolic", index < last, false))
-                        .push(widget::toggler(entry.enabled).on_toggle(move |on| {
-                            Message::Settings(SettingsMessage::Enable(index, on))
-                        }))
-                        .spacing(8)
-                        .align_y(Alignment::Center),
-                )
-                .padding([4, 16]),
-            );
+            .push(toggle_row(
+                fl!("section-battery"),
+                None,
+                self.config.battery_header,
+                |on| Message::Settings(SettingsMessage::BatteryHeader(on)),
+            ))
+            .push(ui::group_label(fl!("sliders-in-order")));
+        let sliders = self.config.slider_entries();
+        for row in ordered_rows(
+            &sliders,
+            slider_name,
+            slider_icon,
+            SettingsMessage::MoveSlider,
+            SettingsMessage::EnableSlider,
+        ) {
+            column = column.push(row);
         }
+        column = column.push(ui::group_label(fl!("tiles-in-order")));
+        let tiles = self.config.tile_entries();
+        for row in ordered_rows(
+            &tiles,
+            tile_name,
+            tile_icon,
+            SettingsMessage::MoveTile,
+            SettingsMessage::EnableTile,
+        ) {
+            column = column.push(row);
+        }
+        column = column
+            .push(ui::group_label(fl!("more-in-popup")))
+            .push(toggle_row(
+                fl!("media-controls"),
+                None,
+                self.config.media_controls,
+                |on| Message::Settings(SettingsMessage::MediaControls(on)),
+            ))
+            .push(toggle_row(
+                fl!("power-buttons"),
+                None,
+                self.config.power_buttons,
+                |on| Message::Settings(SettingsMessage::PowerButtons(on)),
+            ));
         column = column
             .push(section_divider())
             .push(ui::group_label(fl!("panel-icons")));
@@ -237,59 +234,80 @@ fn toggle_row<'a>(
     .into()
 }
 
-fn section_name(section: Section) -> String {
-    match section {
-        Section::Battery => fl!("section-battery"),
-        Section::Volume => fl!("volume"),
-        Section::Microphone => fl!("microphone"),
-        Section::Brightness => fl!("brightness"),
-        Section::Network => fl!("network"),
-        Section::Bluetooth => fl!("bluetooth"),
-        Section::Media => fl!("media-controls"),
-        Section::PowerButtons => fl!("power-buttons"),
+/// One row per entry: icon, name, up/down arrows (moving only within this list) and a toggle.
+fn ordered_rows<'a, T: Copy + 'static>(
+    entries: &[Entry<T>],
+    name: fn(T) -> String,
+    icon_name: fn(T) -> &'static str,
+    move_msg: fn(usize, bool) -> SettingsMessage,
+    enable_msg: fn(usize, bool) -> SettingsMessage,
+) -> Vec<Element<'a, Message>> {
+    let last = entries.len().saturating_sub(1);
+    entries
+        .iter()
+        .enumerate()
+        .map(|(index, entry)| {
+            let arrow = |name: &'static str, enabled: bool, up: bool| {
+                button::icon(icon::from_name(name))
+                    .extra_small()
+                    .on_press_maybe(enabled.then(|| Message::Settings(move_msg(index, up))))
+            };
+            padded_control(
+                widget::Row::new()
+                    .push(
+                        icon::from_name(icon_name(entry.item))
+                            .size(16)
+                            .symbolic(true)
+                            .icon(),
+                    )
+                    .push(text::body(name(entry.item)).width(Length::Fill))
+                    .push(arrow("go-up-symbolic", index > 0, true))
+                    .push(arrow("go-down-symbolic", index < last, false))
+                    .push(
+                        widget::toggler(entry.enabled)
+                            .on_toggle(move |on| Message::Settings(enable_msg(index, on))),
+                    )
+                    .spacing(8)
+                    .align_y(Alignment::Center),
+            )
+            .padding([4, 16])
+            .into()
+        })
+        .collect()
+}
+
+fn slider_name(slider: Slider) -> String {
+    match slider {
+        Slider::Volume => fl!("volume"),
+        Slider::Microphone => fl!("microphone"),
+        Slider::Brightness => fl!("brightness"),
     }
 }
 
-fn section_icon(section: Section) -> &'static str {
-    match section {
-        Section::Battery => "battery-level-80-symbolic",
-        Section::Volume => "audio-volume-high-symbolic",
-        Section::Microphone => "microphone-sensitivity-high-symbolic",
-        Section::Brightness => "display-brightness-symbolic",
-        Section::Network => "network-wireless-signal-excellent-symbolic",
-        Section::Bluetooth => "bluetooth-active-symbolic",
-        Section::Media => "media-playback-start-symbolic",
-        Section::PowerButtons => "system-shutdown-symbolic",
+fn slider_icon(slider: Slider) -> &'static str {
+    match slider {
+        Slider::Volume => "audio-volume-high-symbolic",
+        Slider::Microphone => "microphone-sensitivity-high-symbolic",
+        Slider::Brightness => "display-brightness-symbolic",
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn entries() -> Vec<SectionEntry> {
-        Section::ALL
-            .iter()
-            .map(|&section| SectionEntry {
-                section,
-                enabled: true,
-            })
-            .collect()
+fn tile_name(tile: Tile) -> String {
+    match tile {
+        Tile::Network => fl!("network"),
+        Tile::Bluetooth => fl!("bluetooth"),
+        Tile::Output => fl!("output"),
+        Tile::Airplane => fl!("airplane"),
+        Tile::Vpn => fl!("vpn"),
     }
+}
 
-    #[test]
-    fn moving_sections() {
-        let mut sections = entries();
-        move_section(&mut sections, 1, true);
-        assert_eq!(sections[0].section, Section::Volume);
-        move_section(&mut sections, 0, true);
-        assert_eq!(sections[0].section, Section::Volume, "top stays put");
-        let last = sections.len() - 1;
-        move_section(&mut sections, last, false);
-        assert_eq!(
-            sections[last].section,
-            Section::PowerButtons,
-            "bottom stays put"
-        );
+fn tile_icon(tile: Tile) -> &'static str {
+    match tile {
+        Tile::Network => "network-wireless-signal-excellent-symbolic",
+        Tile::Bluetooth => "bluetooth-active-symbolic",
+        Tile::Output => "audio-speakers-symbolic",
+        Tile::Airplane => "airplane-mode-symbolic",
+        Tile::Vpn => "network-vpn-symbolic",
     }
 }

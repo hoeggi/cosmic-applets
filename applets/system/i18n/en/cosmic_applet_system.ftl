@@ -104,7 +104,9 @@ password = Password
 network-unavailable = NetworkManager isn't running.
 
 # Applet settings
-sections-in-order = Sections, in this order
+sliders-in-order = Sliders, top to bottom
+tiles-in-order = Tiles, top left to bottom right
+more-in-popup = Also in the popup
 panel-icons = Panel icons
 vpn-icon-note = Only while a VPN is connected
 volume = Volume

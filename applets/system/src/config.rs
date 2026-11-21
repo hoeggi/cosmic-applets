@@ -3,41 +3,92 @@
 use cosmic::cosmic_config::{self, CosmicConfigEntry, cosmic_config_derive::CosmicConfigEntry};
 use serde::{Deserialize, Serialize};
 
-/// A block of the main popup. Their order and visibility are user settings.
+/// A slider in the main popup, below the battery header. Their order is a user setting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum Section {
-    /// Battery charge, time left and power mode; hidden without a battery.
-    Battery,
+pub enum Slider {
     Volume,
     Microphone,
     /// Display brightness; hidden without a backlight.
     Brightness,
-    /// The Wi-Fi (or wired) tile and airplane mode.
+}
+
+impl Slider {
+    pub const ALL: [Slider; 3] = [Slider::Volume, Slider::Microphone, Slider::Brightness];
+}
+
+/// A tile in the main popup's two-column grid. Their order fills the grid top left, top right,
+/// bottom left, bottom right; a hidden or unavailable tile leaves no gap.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Tile {
+    /// Neutral: shows the connection in use and opens the Network page.
     Network,
     Bluetooth,
-    /// One row per running media player, between the tiles and the power row.
-    Media,
-    /// Lock, log out, suspend, restart and shut down.
-    PowerButtons,
+    /// Default output; the body toggles mute, the chevron opens the Sound page.
+    Output,
+    /// Only on machines with Wi-Fi.
+    Airplane,
+    /// Only with a VPN profile; off by default.
+    Vpn,
 }
 
-impl Section {
-    pub const ALL: [Section; 8] = [
-        Section::Battery,
-        Section::Volume,
-        Section::Microphone,
-        Section::Brightness,
-        Section::Network,
-        Section::Bluetooth,
-        Section::Media,
-        Section::PowerButtons,
+impl Tile {
+    pub const ALL: [Tile; 5] = [
+        Tile::Network,
+        Tile::Bluetooth,
+        Tile::Output,
+        Tile::Airplane,
+        Tile::Vpn,
     ];
+
+    fn default_enabled(self) -> bool {
+        !matches!(self, Tile::Vpn)
+    }
 }
 
+/// One orderable item and whether it's shown.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SectionEntry {
-    pub section: Section,
+pub struct Entry<T> {
+    pub item: T,
     pub enabled: bool,
+}
+
+/// Every item exactly once, in the configured order: duplicates are dropped and items missing
+/// from an older or hand-edited config are appended with their default, so a new item never
+/// disappears silently.
+pub fn normalized<T: Copy + PartialEq>(
+    entries: &[Entry<T>],
+    all: &[T],
+    default_enabled: impl Fn(T) -> bool,
+) -> Vec<Entry<T>> {
+    let mut out: Vec<Entry<T>> = Vec::new();
+    for entry in entries {
+        if all.contains(&entry.item) && !out.iter().any(|e| e.item == entry.item) {
+            out.push(*entry);
+        }
+    }
+    for &item in all {
+        if !out.iter().any(|e| e.item == item) {
+            out.push(Entry {
+                item,
+                enabled: default_enabled(item),
+            });
+        }
+    }
+    out
+}
+
+/// Moves the entry at `index` one up (or down); no-op at the ends.
+pub fn move_entry<T>(entries: &mut [Entry<T>], index: usize, up: bool) {
+    let other = if up {
+        index.checked_sub(1)
+    } else {
+        Some(index + 1)
+    };
+    if let Some(other) = other.filter(|o| *o < entries.len())
+        && index < entries.len()
+    {
+        entries.swap(index, other);
+    }
 }
 
 /// Which icons the panel button shows.
@@ -70,8 +121,16 @@ impl Default for PanelIcons {
 #[derive(Debug, Clone, CosmicConfigEntry, PartialEq)]
 #[version = 1]
 pub struct Config {
-    /// Main popup sections in display order.
-    pub sections: Vec<SectionEntry>,
+    /// The battery header at the top of the main popup.
+    pub battery_header: bool,
+    /// Sliders, top to bottom.
+    pub sliders: Vec<Entry<Slider>>,
+    /// Tiles, top left to bottom right.
+    pub tiles: Vec<Entry<Tile>>,
+    /// One row per playing or paused media player, below the tiles.
+    pub media_controls: bool,
+    /// Lock, log out, suspend, restart, shut down and COSMIC Settings.
+    pub power_buttons: bool,
     pub panel_icons: PanelIcons,
     /// Percentage next to the battery icon in the panel.
     pub battery_percentage: bool,
@@ -84,13 +143,11 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            sections: Section::ALL
-                .iter()
-                .map(|&section| SectionEntry {
-                    section,
-                    enabled: true,
-                })
-                .collect(),
+            battery_header: true,
+            sliders: normalized(&[], &Slider::ALL, |_| true),
+            tiles: normalized(&[], &Tile::ALL, Tile::default_enabled),
+            media_controls: true,
+            power_buttons: true,
             panel_icons: PanelIcons::default(),
             battery_percentage: true,
             show_alerts: true,
@@ -100,23 +157,31 @@ impl Default for Config {
 }
 
 impl Config {
-    /// Enabled sections in display order. Sections missing from a hand-edited config are
-    /// appended, so a new section never disappears silently.
-    pub fn visible_sections(&self) -> Vec<Section> {
-        let mut seen = Vec::new();
-        let mut out = Vec::new();
-        for entry in &self.sections {
-            if seen.contains(&entry.section) {
-                continue;
-            }
-            seen.push(entry.section);
-            if entry.enabled {
-                out.push(entry.section);
-            }
-        }
-        out.extend(Section::ALL.iter().filter(|s| !seen.contains(s)));
-        out
+    pub fn slider_entries(&self) -> Vec<Entry<Slider>> {
+        normalized(&self.sliders, &Slider::ALL, |_| true)
     }
+
+    pub fn tile_entries(&self) -> Vec<Entry<Tile>> {
+        normalized(&self.tiles, &Tile::ALL, Tile::default_enabled)
+    }
+
+    /// Enabled sliders, top to bottom.
+    pub fn visible_sliders(&self) -> Vec<Slider> {
+        enabled(self.slider_entries())
+    }
+
+    /// Enabled tiles, top left to bottom right.
+    pub fn visible_tiles(&self) -> Vec<Tile> {
+        enabled(self.tile_entries())
+    }
+}
+
+fn enabled<T>(entries: Vec<Entry<T>>) -> Vec<T> {
+    entries
+        .into_iter()
+        .filter(|e| e.enabled)
+        .map(|e| e.item)
+        .collect()
 }
 
 #[cfg(test)]
@@ -124,34 +189,60 @@ mod tests {
     use super::*;
 
     #[test]
-    fn defaults_show_everything_in_order() {
-        assert_eq!(Config::default().visible_sections(), Section::ALL.to_vec());
+    fn defaults() {
+        let config = Config::default();
+        assert_eq!(config.visible_sliders(), Slider::ALL.to_vec());
+        assert_eq!(
+            config.visible_tiles(),
+            [Tile::Network, Tile::Bluetooth, Tile::Output, Tile::Airplane]
+        );
     }
 
     #[test]
-    fn disabled_duplicate_and_missing_sections() {
+    fn duplicates_dropped_missing_appended() {
         let config = Config {
-            sections: vec![
-                SectionEntry {
-                    section: Section::Volume,
+            tiles: vec![
+                Entry {
+                    item: Tile::Airplane,
                     enabled: true,
                 },
-                SectionEntry {
-                    section: Section::Battery,
+                Entry {
+                    item: Tile::Network,
                     enabled: false,
                 },
-                SectionEntry {
-                    section: Section::Volume,
+                Entry {
+                    item: Tile::Airplane,
                     enabled: false,
                 },
             ],
             ..Config::default()
         };
-        let visible = config.visible_sections();
-        assert_eq!(visible[0], Section::Volume);
-        assert!(!visible.contains(&Section::Battery));
-        // The duplicate entry is ignored, the rest are appended in their default order.
-        assert_eq!(visible.len(), 7);
-        assert_eq!(visible[1], Section::Microphone);
+        let entries = config.tile_entries();
+        let order: Vec<_> = entries.iter().map(|e| e.item).collect();
+        assert_eq!(
+            order,
+            [
+                Tile::Airplane,
+                Tile::Network,
+                Tile::Bluetooth,
+                Tile::Output,
+                Tile::Vpn
+            ]
+        );
+        assert_eq!(
+            config.visible_tiles(),
+            [Tile::Airplane, Tile::Bluetooth, Tile::Output]
+        );
+    }
+
+    #[test]
+    fn moving_stays_inside_the_list() {
+        let mut entries = Config::default().slider_entries();
+        move_entry(&mut entries, 0, true);
+        assert_eq!(entries[0].item, Slider::Volume, "top stays put");
+        move_entry(&mut entries, 0, false);
+        assert_eq!(entries[1].item, Slider::Volume);
+        move_entry(&mut entries, 2, false);
+        assert_eq!(entries[2].item, Slider::Brightness, "bottom stays put");
     }
 }

@@ -77,20 +77,25 @@ impl AppModel {
         ))
     }
 
-    /// Without a Wi-Fi card the airplane slot is free; a VPN tile takes it.
-    pub(super) fn second_network_tile(&self) -> Option<Element<'_, Message>> {
-        let net = &self.network;
-        if net.has_wifi {
-            let on = self.airplane();
-            return Some(ui::tile(
-                "airplane-mode-symbolic",
-                fl!("airplane"),
-                if on { fl!("on") } else { fl!("off") },
-                on,
-                Some(Message::Airplane(!on)),
-                None,
-            ));
+    /// Only on machines with Wi-Fi; a toggle without a page.
+    pub(super) fn airplane_tile(&self) -> Option<Element<'_, Message>> {
+        if !self.network.has_wifi {
+            return None;
         }
+        let on = self.airplane();
+        Some(ui::tile(
+            "airplane-mode-symbolic",
+            fl!("airplane"),
+            if on { fl!("on") } else { fl!("off") },
+            on,
+            Some(Message::Airplane(!on)),
+            None,
+        ))
+    }
+
+    /// The connected VPN (or the first profile); only with a VPN profile.
+    pub(super) fn vpn_tile(&self) -> Option<Element<'_, Message>> {
+        let net = &self.network;
         let vpn = net.vpns.iter().find(|v| v.connected).or(net.vpns.first())?;
         Some(ui::tile(
             "network-vpn-symbolic",

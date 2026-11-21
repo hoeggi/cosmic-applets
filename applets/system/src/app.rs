@@ -5,7 +5,7 @@ use crate::adapter::battery as battery_backend;
 use crate::adapter::bluetooth as bt;
 use crate::adapter::media as mpris;
 use crate::adapter::network as net;
-use crate::config::{Config, Section};
+use crate::config::{Config, Slider, Tile};
 use crate::fl;
 use crate::panel;
 use crate::power::PowerAction;
@@ -512,48 +512,43 @@ impl AppModel {
     }
 
     fn view_main(&self) -> Element<'_, Message> {
+        // Fixed group order: battery header, sliders, tiles, media rows, power buttons. Only the
+        // order inside the slider and tile groups is configurable.
         let mut column = widget::Column::new().padding([8, 0]);
-        let mut tiles = Vec::new();
-        let mut power_buttons = false;
-        let mut media = false;
-        // Airplane (or VPN on machines without Wi-Fi) goes last among the tiles.
-        let mut second = None;
-        for section in self.config.visible_sections() {
-            match section {
-                Section::Network => {
-                    tiles.extend(self.network_tile());
-                    second = self.second_network_tile();
-                }
-                Section::Bluetooth => tiles.extend(self.bluetooth_tile()),
-                Section::Volume => {
-                    if let Some(slider) = self.sink_slider() {
-                        column = column.push(slider);
-                        tiles.push(self.output_tile());
-                    }
-                }
-                Section::Microphone => {
-                    if let Some(slider) = self.source_slider() {
-                        column = column.push(slider);
-                    }
-                }
-                Section::Battery => {
-                    if let Some(header) = self.battery_header() {
-                        column = column.push(header).push(section_divider());
-                    }
-                }
-                Section::PowerButtons => power_buttons = true,
-                Section::Media => media = true,
-                Section::Brightness => {
-                    if let Some(slider) = self.brightness_slider() {
-                        column = column.push(slider);
-                    }
-                }
+        if self.config.battery_header
+            && let Some(header) = self.battery_header()
+        {
+            column = column.push(header).push(section_divider());
+        }
+        for slider in self.config.visible_sliders() {
+            let row = match slider {
+                Slider::Volume => self.sink_slider(),
+                Slider::Microphone => self.source_slider(),
+                Slider::Brightness => self.brightness_slider(),
+            };
+            if let Some(row) = row {
+                column = column.push(row);
             }
         }
-        tiles.extend(second);
+        // Tiles fill the grid top left, top right, bottom left, bottom right; unavailable ones
+        // (no Wi-Fi, no VPN profile, no audio) leave no gap.
+        let tiles: Vec<_> = self
+            .config
+            .visible_tiles()
+            .into_iter()
+            .filter_map(|tile| match tile {
+                Tile::Network => self.network_tile(),
+                Tile::Bluetooth => self.bluetooth_tile(),
+                Tile::Output => self.audio.sink().is_some().then(|| self.output_tile()),
+                Tile::Airplane => self.airplane_tile(),
+                Tile::Vpn => self.vpn_tile(),
+            })
+            .collect();
         if !tiles.is_empty() {
             column = column.push(ui::tile_grid(tiles));
         }
+        let media = self.config.media_controls;
+        let power_buttons = self.config.power_buttons;
         column = column.push(section_divider());
         // One row per player; no rows and no extra divider without players.
         let rows = if media { self.media_rows() } else { Vec::new() };
