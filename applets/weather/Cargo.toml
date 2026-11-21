@@ -1,6 +1,6 @@
 [package]
 name = "cosmic-applet-weather"
-version = "0.1.0"
+version = "0.1.1"
 description = "Current weather and forecast from Open-Meteo"
 publish = false
 edition.workspace = true

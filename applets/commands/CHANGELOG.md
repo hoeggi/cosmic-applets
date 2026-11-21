@@ -4,6 +4,14 @@ All notable changes to `cosmic-applet-commands` are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/). Releases are tagged `commands-v<version>`.
 
+## [0.1.4] - 2026-11-21
+
+### Changed
+- Built with a newer libcosmic, the version the current COSMIC desktop (1.11) ships with.
+
+### Fixed
+- The software-center metadata now links to the right repository and icon.
+
 ## [0.1.3] - 2026-11-17
 
 ### Fixed
