@@ -51,7 +51,12 @@ pub fn group_label<M: 'static>(label: String) -> Element<'static, M> {
         .into()
 }
 
-/// One quick-settings tile: the body toggles, the chevron (if any) opens a page.
+/// Tile corner radius, as in the mockups.
+const TILE_RADIUS: f32 = 12.0;
+
+/// One quick-settings tile: one rounded background (the accent button colours when on, the
+/// standard button colours when off) holding two click areas: the body toggles, the chevron (if
+/// any) opens a page, with a thin divider between them.
 pub fn tile<'a, M: Clone + 'static>(
     icon_name: &'a str,
     name: String,
@@ -60,13 +65,6 @@ pub fn tile<'a, M: Clone + 'static>(
     toggle: Option<M>,
     open: Option<M>,
 ) -> Element<'a, M> {
-    let class = || {
-        if on {
-            cosmic::theme::Button::Suggested
-        } else {
-            cosmic::theme::Button::Standard
-        }
-    };
     let body = widget::Row::new()
         .push(icon::from_name(icon_name).size(16).symbolic(true).icon())
         .push(
@@ -77,27 +75,109 @@ pub fn tile<'a, M: Clone + 'static>(
         )
         .spacing(10)
         .align_y(Alignment::Center);
+    let has_chevron = open.is_some();
+    let body_corners = if has_chevron {
+        [TILE_RADIUS, 0.0, 0.0, TILE_RADIUS]
+    } else {
+        [TILE_RADIUS; 4]
+    };
     let mut row = widget::Row::new().push(
         button::custom(body)
-            .class(class())
+            .class(tile_area(on, body_corners))
             .padding([8, 10])
             .width(Length::Fill)
             .on_press_maybe(toggle),
     );
     if let Some(open) = open {
-        row = row.push(
-            button::custom(
-                icon::from_name("go-next-symbolic")
-                    .size(16)
-                    .symbolic(true)
-                    .icon(),
+        row = row
+            .push(
+                widget::container(widget::Space::new())
+                    .width(Length::Fixed(1.0))
+                    .height(Length::Fixed(28.0))
+                    .class(cosmic::theme::Container::custom(move |theme| {
+                        let mut color: cosmic::iced::Color = tile_colors(theme, on).1.into();
+                        color.a = 0.35;
+                        widget::container::Style {
+                            background: Some(color.into()),
+                            ..Default::default()
+                        }
+                    })),
             )
-            .class(class())
-            .padding([16, 6])
-            .on_press(open),
-        );
+            .push(
+                button::custom(
+                    icon::from_name("go-next-symbolic")
+                        .size(16)
+                        .symbolic(true)
+                        .icon(),
+                )
+                .class(tile_area(on, [0.0, TILE_RADIUS, TILE_RADIUS, 0.0]))
+                .padding([16, 8])
+                .on_press(open),
+            );
     }
-    row.spacing(1).width(Length::Fill).into()
+    widget::container(row.align_y(Alignment::Center))
+        .width(Length::Fill)
+        .class(cosmic::theme::Container::custom(move |theme| {
+            let (base, on_color) = tile_colors(theme, on);
+            widget::container::Style {
+                background: Some(cosmic::iced::Color::from(base).into()),
+                text_color: Some(on_color.into()),
+                icon_color: Some(on_color.into()),
+                border: cosmic::iced::Border {
+                    radius: TILE_RADIUS.into(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }
+        }))
+        .into()
+}
+
+/// The tile's background and foreground: the accent button colours when on, the standard
+/// button colours when off, so both themes work.
+fn tile_colors(
+    theme: &cosmic::Theme,
+    on: bool,
+) -> (
+    cosmic::cosmic_theme::palette::Srgba,
+    cosmic::cosmic_theme::palette::Srgba,
+) {
+    let cosmic = theme.cosmic();
+    let component = if on {
+        &cosmic.accent_button
+    } else {
+        &cosmic.button
+    };
+    (component.base, component.on)
+}
+
+/// A click area inside a tile: transparent over the tile's background, with the component's
+/// hover and pressed colours.
+fn tile_area(on: bool, corners: [f32; 4]) -> cosmic::theme::Button {
+    let style = move |theme: &cosmic::Theme,
+                      state: fn(
+        &cosmic::cosmic_theme::Component,
+    ) -> Option<cosmic::cosmic_theme::palette::Srgba>| {
+        let cosmic = theme.cosmic();
+        let component = if on {
+            &cosmic.accent_button
+        } else {
+            &cosmic.button
+        };
+        button::Style {
+            background: state(component).map(|c| cosmic::iced::Color::from(c).into()),
+            border_radius: corners.into(),
+            text_color: Some(component.on.into()),
+            icon_color: Some(component.on.into()),
+            ..button::Style::new()
+        }
+    };
+    cosmic::theme::Button::Custom {
+        active: Box::new(move |_, theme| style(theme, |_| None)),
+        disabled: Box::new(move |theme| style(theme, |_| None)),
+        hovered: Box::new(move |_, theme| style(theme, |c| Some(c.hover))),
+        pressed: Box::new(move |_, theme| style(theme, |c| Some(c.pressed))),
+    }
 }
 
 /// Two tiles per row.
