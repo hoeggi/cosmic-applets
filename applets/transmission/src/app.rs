@@ -864,7 +864,7 @@ async fn launch(command: Vec<String>) {
     };
     let mut cmd = std::process::Command::new(program);
     cmd.args(args);
-    if cosmic::process::spawn(cmd).await.is_none() {
+    if cosmic_launch::process::spawn(cmd).await.is_none() {
         tracing::warn!(?command, "failed to start client");
     }
 }

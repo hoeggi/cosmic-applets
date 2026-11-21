@@ -48,9 +48,13 @@ features = [
     "wayland",
     # Windowing support for X11, Windows, Mac, & Redox
     "winit",
-    # Detached process spawning (cosmic::process::spawn)
-    "process",
 ]
+
+# Detached process spawning (cosmic_launch::process::spawn). Same git source as libcosmic, so the
+# lockfile pins both to one revision.
+[workspace.dependencies.cosmic-launch]
+git = "https://github.com/pop-os/libcosmic.git"
+features = ["systemd", "tokio"]
 
 # Uncomment to test a locally-cloned libcosmic
 # [patch.'https://github.com/pop-os/libcosmic']

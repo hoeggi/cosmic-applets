@@ -16,6 +16,7 @@ cosmic-applet-common.workspace = true
 i18n-embed.workspace = true
 i18n-embed-fl.workspace = true
 libcosmic.workspace = true
+cosmic-launch.workspace = true
 oo7.workspace = true
 reqwest.workspace = true
 rust-embed.workspace = true

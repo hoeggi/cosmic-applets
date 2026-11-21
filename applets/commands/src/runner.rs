@@ -81,7 +81,7 @@ pub async fn spawn_in_terminal(terminal: Vec<String>, command: String) -> bool {
         "sh",
         &command,
     ]);
-    cosmic::process::spawn(cmd).await.is_some()
+    cosmic_launch::process::spawn(cmd).await.is_some()
 }
 
 fn truncate_tail(s: &str) -> String {
