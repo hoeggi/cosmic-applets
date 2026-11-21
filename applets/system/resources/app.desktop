@@ -1,0 +1,16 @@
+[Desktop Entry]
+Name=Cosmic Applet System
+Comment=Audio, battery, Bluetooth, network and power in one applet
+Type=Application
+Icon=preferences-system-symbolic
+Exec=cosmic-applet-system
+Terminal=false
+StartupNotify=true
+Categories=COSMIC
+Keywords=COSMIC
+NoDisplay=true
+X-CosmicApplet=true
+X-CosmicHoverPopup=Auto
+X-CosmicShrinkable=true
+X-OverflowPriority=10
+MimeType=

@@ -1,0 +1,40 @@
+[package]
+name = "cosmic-applet-system"
+version = "0.1.0"
+description = "Audio, battery, Bluetooth, network and power in one COSMIC panel applet"
+publish = false
+edition.workspace = true
+# Builds on System76's GPL-3.0 cosmic-applets code, so this crate is GPL, not the workspace's
+# MPL-2.0. See docs/LICENSING.md.
+license = "GPL-3.0-only"
+repository.workspace = true
+authors.workspace = true
+
+[build-dependencies]
+xdgen.workspace = true
+
+[dependencies]
+cosmic-applet-common.workspace = true
+i18n-embed.workspace = true
+i18n-embed-fl.workspace = true
+libcosmic.workspace = true
+rust-embed.workspace = true
+serde.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+# `cargo deb -p cosmic-applet-system` (see `make deb`)
+[package.metadata.deb]
+section = "misc"
+extended-description = """\
+Panel applet for the COSMIC desktop that combines audio, battery, Bluetooth, network and power: \
+volume, microphone and brightness sliders, quick tiles for Wi-Fi, Bluetooth, the audio output and \
+airplane mode, detail pages for each, and lock, log out, suspend, restart and shut down."""
+depends = "$auto"
+assets = [
+    ["target/release/cosmic-applet-system", "usr/bin/", "755"],
+    ["generated/app.desktop", "usr/share/applications/at.hoeggi.CosmicAppletSystem.desktop", "644"],
+    ["generated/app.metainfo.xml", "usr/share/metainfo/at.hoeggi.CosmicAppletSystem.metainfo.xml", "644"],
+    ["resources/icon.svg", "usr/share/icons/hicolor/scalable/apps/at.hoeggi.CosmicAppletSystem.svg", "644"],
+    ["LICENSE", "usr/share/doc/cosmic-applet-system/LICENSE", "644"],
+]

@@ -1057,6 +1057,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "cosmic-applet-system"
+version = "0.1.0"
+dependencies = [
+ "cosmic-applet-common",
+ "i18n-embed",
+ "i18n-embed-fl",
+ "libcosmic",
+ "rust-embed",
+ "serde",
+ "tokio",
+ "tracing",
+ "xdgen",
+]
+
+[[package]]
 name = "cosmic-applet-transmission"
 version = "0.2.1"
 dependencies = [
