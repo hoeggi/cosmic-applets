@@ -7,9 +7,8 @@ mod bluetooth;
 mod config;
 mod i18n;
 mod network;
+mod panel;
 mod power;
-// Some helpers are only used by later milestones.
-#[allow(dead_code)]
 mod ui;
 
 fn main() -> cosmic::iced::Result {

@@ -98,3 +98,18 @@ other-networks = Other networks
 open-network = Open network
 password = Password
 network-unavailable = NetworkManager isn't running.
+
+# Applet settings
+sections-in-order = Sections, in this order
+panel-icons = Panel icons
+vpn-icon-note = Only while a VPN is connected
+volume = Volume
+microphone = Microphone
+brightness = Brightness
+power = Power
+power-buttons = Power buttons
+section-battery = Battery and power mode
+battery-percentage = Battery percentage
+show-alerts = Show alerts
+show-alerts-description = Unpicked icons appear in red while something needs attention
+confirm-shutdown-setting = Ask before shutting down

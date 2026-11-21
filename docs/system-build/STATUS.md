@@ -13,8 +13,8 @@ Design: `docs/system-mockups`. Licensing rules: `docs/LICENSING.md`.
 | 3 | Audio: sliders, Output tile, Sound page, scroll on the panel icon | done | 2ce2cee |
 | 4 | Battery header and page, power profiles, charge limit, peripherals, brightness | done | 2379add |
 | 5 | Bluetooth tile and page: power, paired devices, scan, pair, connect | done | eb02e54 |
-| 6 | Network tile and page (wired, Wi-Fi, VPN, In use), airplane mode, VPN tile on desktops | done | see git log |
-| 7 | Panel icons, alerts, settings page | next | |
+| 6 | Network tile and page (wired, Wi-Fi, VPN, In use), airplane mode, VPN tile on desktops | done | 8785a2c |
+| 7 | Panel icons, alerts, settings page | done | see git log |
 
 ## How to run and check
 
@@ -63,6 +63,15 @@ Chosen here (tell me if you want it different):
   open and stops when it is left or the popup closes.
 
 ## Known gaps
+
+- Microphone panel icon and the "mic muted while an app records" alert are not built: the
+  audio service reports playback streams but not recording streams, so the applet can't tell
+  when an app records. The config keeps the `microphone` flag; the settings page doesn't offer
+  it.
+- The other five alerts work: no network, low battery (< 10 % discharging), muted output, a
+  connected Bluetooth device below 20 %, and a VPN that went down without being switched off
+  in the applet.
+- Section order uses up/down arrows instead of the mockup's drag handles.
 
 - Charge limit: uses UPower's charge-threshold API, which this machine's UPower 1.90.3 doesn't
   expose, so the toggle stays hidden here. system76-power's `SetChargeThresholds` could back

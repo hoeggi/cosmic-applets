@@ -6,6 +6,7 @@ use crate::bluetooth as bt;
 use crate::config::{Config, Section};
 use crate::fl;
 use crate::network as net;
+use crate::panel;
 use crate::power::PowerAction;
 use crate::ui;
 use cosmic::applet::padded_control;
@@ -14,13 +15,14 @@ use cosmic::iced::mouse::ScrollDelta;
 use cosmic::iced::{Alignment, Length, Subscription, window::Id};
 use cosmic::prelude::*;
 use cosmic::widget::{self, button, icon, text};
-use cosmic_applet_common::widgets::section_divider;
+use cosmic_applet_common::widgets::{section_divider, status_color};
 use cosmic_applet_common::{config as cfg, popup};
 use std::time::{Duration, Instant};
 
 mod battery;
 mod bluetooth;
 mod network;
+mod settings;
 mod sound;
 
 pub const APP_ID: &str = "at.hoeggi.CosmicAppletSystem";
@@ -68,6 +70,10 @@ pub struct AppModel {
     network: net::Network,
     network_tx: Option<tokio::sync::mpsc::UnboundedSender<net::Command>>,
     password_prompt: Option<network::PasswordPrompt>,
+    /// A VPN went down without being switched off here; cleared when one connects.
+    vpn_dropped: bool,
+    /// VPNs switched off here, so their going down isn't an alert.
+    vpn_switched_off: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -107,6 +113,7 @@ pub enum Message {
     PasswordSubmit,
     PasswordCancel,
     Airplane(bool),
+    Settings(settings::SettingsMessage),
     /// A background task finished; nothing to do.
     Done,
 }
@@ -156,9 +163,7 @@ impl cosmic::Application for AppModel {
             Page::Sound => self.view_sound(),
             Page::Network => self.view_network(),
             Page::Bluetooth => self.view_bluetooth(),
-            Page::Settings => {
-                self.view_placeholder(fl!("applet-settings-title"), String::new(), "")
-            }
+            Page::Settings => self.view_settings(),
             Page::Confirm(action) => self.view_confirm(action),
         };
         let body = widget::container(widget::scrollable(content)).max_height(POPUP_MAX_HEIGHT);
@@ -292,8 +297,15 @@ impl cosmic::Application for AppModel {
             Message::BluetoothUpdate(bt::Update::State(state)) => self.bluetooth = state,
             Message::Bluetooth(command) => self.bluetooth_command(command),
             Message::NetworkUpdate(net::Update::Ready(tx)) => self.network_tx = Some(tx),
-            Message::NetworkUpdate(net::Update::State(state)) => self.network = *state,
-            Message::Network(command) => self.network_command(command),
+            Message::NetworkUpdate(net::Update::State(state)) => self.network_changed(*state),
+            Message::Network(command) => {
+                if let net::Command::SetVpn(path, false) = &command {
+                    self.vpn_switched_off.push(path.clone());
+                }
+                self.vpn_dropped = false;
+                self.network_command(command);
+            }
+            Message::Settings(message) => self.update_settings(message),
             Message::SelectNetwork(ssid) => {
                 if let Some(ap) = self
                     .network
@@ -335,12 +347,6 @@ fn open_cosmic_settings(page: &str) {
 }
 
 impl AppModel {
-    /// The config context, for writing settings.
-    #[allow(dead_code)]
-    pub fn config_ctx(&self) -> Option<&cosmic_config::Config> {
-        self.config_ctx.as_ref()
-    }
-
     /// Switches pages; the Bluetooth page scans while it is open.
     fn set_page(&mut self, page: Page) {
         if self.page == Page::Bluetooth && page != Page::Bluetooth {
@@ -356,6 +362,48 @@ impl AppModel {
             self.password_prompt = None;
         }
         self.page = page;
+    }
+
+    fn network_changed(&mut self, state: net::Network) {
+        for before in self.network.vpns.iter().filter(|v| v.connected) {
+            let still_up = state
+                .vpns
+                .iter()
+                .any(|v| v.path == before.path && v.connected);
+            if !still_up && !self.vpn_switched_off.contains(&before.path) {
+                tracing::warn!(vpn = before.name, "VPN dropped");
+                self.vpn_dropped = true;
+            }
+        }
+        if state.vpn_connected() {
+            self.vpn_dropped = false;
+        }
+        self.vpn_switched_off.retain(|path| {
+            state
+                .vpns
+                .iter()
+                .any(|v| &v.path == path && v.active.is_some())
+        });
+        self.network = state;
+    }
+
+    fn panel_state(&self) -> panel::State {
+        let battery = &self.battery;
+        panel::State {
+            network: self.network.available.then(|| self.network.icon()),
+            network_connected: self.network.connected(),
+            vpn_connected: self.network.vpn_connected(),
+            vpn_dropped: self.vpn_dropped,
+            bluetooth: self.bluetooth.available.then_some(self.bluetooth.powered),
+            bluetooth_lowest: self.bluetooth.connected().filter_map(|d| d.battery).min(),
+            volume: self
+                .audio
+                .sink()
+                .map(|s| (audio::volume_icon(s.volume, s.mute), s.mute)),
+            battery: battery
+                .present
+                .then(|| (battery.icon(), battery.percentage, battery.is_low())),
+        }
     }
 
     fn close_popup(&mut self) -> Task<cosmic::Action<Message>> {
@@ -383,17 +431,55 @@ impl AppModel {
     }
 
     fn view_panel(&self) -> Element<'_, Message> {
-        let content = widget::Row::new()
-            .push(
-                icon::from_name("preferences-system-symbolic")
-                    .size(16)
-                    .symbolic(true)
-                    .icon(),
-            )
-            .spacing(4)
-            .align_y(Alignment::Center);
+        let horizontal = self.core.applet.is_horizontal();
+        let size = f32::from(self.core.applet.suggested_size(true).0);
+        let mut items = panel::items(
+            &self.panel_state(),
+            &self.config.panel_icons,
+            self.config.show_alerts,
+            self.config.battery_percentage,
+        );
+        if items.is_empty() {
+            items.push(panel::Item {
+                icon: "preferences-system-symbolic".into(),
+                alert: false,
+                label: None,
+            });
+        }
+        let elements: Vec<Element<'_, Message>> = items
+            .into_iter()
+            .map(|item| {
+                let icon = panel_icon(item.icon, size, item.alert);
+                match item.label {
+                    Some(label) => {
+                        let mut text = self.core.applet.text(label);
+                        if item.alert {
+                            text = text.class(cosmic::theme::Text::Color(status_color(false)));
+                        }
+                        widget::Row::new()
+                            .push(icon)
+                            .push(text)
+                            .spacing(2)
+                            .align_y(Alignment::Center)
+                            .into()
+                    }
+                    None => icon,
+                }
+            })
+            .collect();
+        let content: Element<'_, Message> = if horizontal {
+            widget::Row::with_children(elements)
+                .spacing(4)
+                .align_y(Alignment::Center)
+                .into()
+        } else {
+            widget::Column::with_children(elements)
+                .spacing(4)
+                .align_x(Alignment::Center)
+                .into()
+        };
         let (major, minor) = self.core.applet.suggested_padding(true);
-        let padding = if self.core.applet.is_horizontal() {
+        let padding = if horizontal {
             [minor, major]
         } else {
             [major, minor]
@@ -562,32 +648,6 @@ impl AppModel {
             .push(self.view_power_row(Some(action)))
             .into()
     }
-
-    /// Detail page skeleton until its milestone lands.
-    fn view_placeholder(
-        &self,
-        title: String,
-        settings_label: String,
-        settings_page: &'static str,
-    ) -> Element<'_, Message> {
-        let mut column = widget::Column::new()
-            .padding([8, 0])
-            .push(ui::page_header(
-                title,
-                None,
-                Message::Open(Page::Main),
-                Vec::new(),
-            ))
-            .push(section_divider())
-            .push(ui::note(fl!("not-available")));
-        if !settings_page.is_empty() {
-            column = column.push(section_divider()).push(ui::settings_link(
-                settings_label,
-                Message::OpenSettings(settings_page),
-            ));
-        }
-        column.into()
-    }
 }
 
 fn power_label(action: PowerAction) -> String {
@@ -603,4 +663,20 @@ fn power_label(action: PowerAction) -> String {
 /// Runs an audio command in the background.
 fn audio_task(command: audio::Command) -> Task<cosmic::Action<Message>> {
     Task::perform(audio::run(command), |()| cosmic::Action::App(Message::Done))
+}
+
+/// A symbolic icon in the panel's foreground colour, or the alert colour.
+fn panel_icon(name: String, size: f32, alert: bool) -> Element<'static, Message> {
+    widget::icon(icon::from_name(name).symbolic(true).handle())
+        .class(cosmic::theme::Svg::Custom(std::rc::Rc::new(move |theme| {
+            let color = if alert {
+                status_color(false)
+            } else {
+                theme.cosmic().background(theme.transparent).on.into()
+            };
+            cosmic::iced::widget::svg::Style { color: Some(color) }
+        })))
+        .width(Length::Fixed(size))
+        .height(Length::Fixed(size))
+        .into()
 }
