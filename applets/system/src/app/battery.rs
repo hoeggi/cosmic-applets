@@ -119,7 +119,7 @@ impl AppModel {
             for profile in &battery.profiles {
                 let selected = battery.profile.as_ref() == Some(profile);
                 column = column.push(ui::choice_row(
-                    profile_icon(profile),
+                    "",
                     profile_name(profile),
                     Some(profile_description(profile)),
                     selected,
@@ -212,13 +212,5 @@ fn profile_description(profile: &str) -> String {
         "power-saver" => fl!("profile-power-saver-description"),
         "performance" => fl!("profile-performance-description"),
         _ => fl!("profile-balanced-description"),
-    }
-}
-
-fn profile_icon(profile: &str) -> &'static str {
-    match profile {
-        "power-saver" => "power-profile-power-saver-symbolic",
-        "performance" => "power-profile-performance-symbolic",
-        _ => "power-profile-balanced-symbolic",
     }
 }

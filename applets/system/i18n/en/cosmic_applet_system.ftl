@@ -81,3 +81,20 @@ connected = Connected
 connected-battery = Connected · { $percent }%
 not-connected = Not connected
 bluetooth-unavailable = No Bluetooth adapter found.
+
+# Network
+wired = Wired
+ethernet = Ethernet
+vpn = VPN
+airplane = Airplane
+in-use = In use
+disconnected = Disconnected
+connecting = Connecting…
+connected-speed = Connected · { $speed }
+connected-standby = Connected · standby
+connected-via = Connected via { $link }
+cable-unplugged = Cable unplugged
+other-networks = Other networks
+open-network = Open network
+password = Password
+network-unavailable = NetworkManager isn't running.

@@ -141,7 +141,7 @@ pub fn slider_row<'a, M: Clone + 'static>(
     padded_control(row).padding([2, 16, 2, 10]).into()
 }
 
-/// A selectable row: icon, name, subtitle, trailing widgets and a check mark when selected.
+/// A selectable row: icon (none if `icon_name` is empty), name, subtitle, trailing widgets and a check mark when selected.
 pub fn choice_row<'a, M: Clone + 'static>(
     icon_name: &'a str,
     name: String,
@@ -154,11 +154,12 @@ pub fn choice_row<'a, M: Clone + 'static>(
     if let Some(subtitle) = subtitle {
         info = info.push(text::caption(subtitle));
     }
-    let mut row = widget::Row::new()
-        .push(icon::from_name(icon_name).size(16).symbolic(true).icon())
-        .push(info.width(Length::Fill))
-        .spacing(12)
-        .align_y(Alignment::Center);
+    let mut row = widget::Row::new().spacing(12).align_y(Alignment::Center);
+    // An empty name leaves the icon out (e.g. power profiles, which have no themed icons).
+    if !icon_name.is_empty() {
+        row = row.push(icon::from_name(icon_name).size(16).symbolic(true).icon());
+    }
+    row = row.push(info.width(Length::Fill));
     for item in trailing {
         row = row.push(item);
     }

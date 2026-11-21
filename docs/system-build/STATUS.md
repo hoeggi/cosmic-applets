@@ -12,9 +12,9 @@ Design: `docs/system-mockups`. Licensing rules: `docs/LICENSING.md`.
 | 2 | Power buttons, confirmation with countdown, settings entry points | done | 6c29c50 |
 | 3 | Audio: sliders, Output tile, Sound page, scroll on the panel icon | done | 2ce2cee |
 | 4 | Battery header and page, power profiles, charge limit, peripherals, brightness | done | 2379add |
-| 5 | Bluetooth tile and page: power, paired devices, scan, pair, connect | done | see git log |
-| 6 | Network, airplane mode | next | |
-| 7 | Panel icons, alerts, settings page | | |
+| 5 | Bluetooth tile and page: power, paired devices, scan, pair, connect | done | eb02e54 |
+| 6 | Network tile and page (wired, Wi-Fi, VPN, In use), airplane mode, VPN tile on desktops | done | see git log |
+| 7 | Panel icons, alerts, settings page | next | |
 
 ## How to run and check
 
@@ -71,6 +71,14 @@ Chosen here (tell me if you want it different):
 - Bluetooth pairing registers no agent of its own. Devices that need a PIN or a passkey
   confirmation only pair if another agent runs (e.g. COSMIC Settings' Bluetooth page); "Just
   works" devices pair directly.
+
+- Wi-Fi: joining a new secured network asks for a WPA/WPA2 personal password inline.
+  Enterprise (802.1X) and WEP networks aren't handled; use Network settings… for those.
+- Airplane mode switches Wi-Fi and mobile broadband off through NetworkManager and Bluetooth
+  through BlueZ. It's shown as on while Wi-Fi and Bluetooth are both off. It doesn't use rfkill
+  directly, so a hardware airplane key isn't reflected separately.
+- Power profiles have no icons: neither the COSMIC nor the Pop icon theme has
+  power-profile-* icons, and libcosmic doesn't fall back to Adwaita.
 
 ## Lockfile
 

@@ -5,6 +5,7 @@ use crate::battery as battery_backend;
 use crate::bluetooth as bt;
 use crate::config::{Config, Section};
 use crate::fl;
+use crate::network as net;
 use crate::power::PowerAction;
 use crate::ui;
 use cosmic::applet::padded_control;
@@ -19,6 +20,7 @@ use std::time::{Duration, Instant};
 
 mod battery;
 mod bluetooth;
+mod network;
 mod sound;
 
 pub const APP_ID: &str = "at.hoeggi.CosmicAppletSystem";
@@ -63,6 +65,9 @@ pub struct AppModel {
     brightness_debounce: battery_backend::Debounced,
     bluetooth: bt::Bluetooth,
     bluetooth_tx: Option<tokio::sync::mpsc::UnboundedSender<bt::Command>>,
+    network: net::Network,
+    network_tx: Option<tokio::sync::mpsc::UnboundedSender<net::Command>>,
+    password_prompt: Option<network::PasswordPrompt>,
 }
 
 #[derive(Debug, Clone)]
@@ -95,6 +100,13 @@ pub enum Message {
     SetChargeLimit(bool),
     BluetoothUpdate(bt::Update),
     Bluetooth(bt::Command),
+    NetworkUpdate(net::Update),
+    Network(net::Command),
+    SelectNetwork(String),
+    PasswordInput(String),
+    PasswordSubmit,
+    PasswordCancel,
+    Airplane(bool),
     /// A background task finished; nothing to do.
     Done,
 }
@@ -142,9 +154,7 @@ impl cosmic::Application for AppModel {
             Page::Main => self.view_main(),
             Page::Battery => self.view_battery(),
             Page::Sound => self.view_sound(),
-            Page::Network => {
-                self.view_placeholder(fl!("network"), fl!("network-settings"), "network")
-            }
+            Page::Network => self.view_network(),
             Page::Bluetooth => self.view_bluetooth(),
             Page::Settings => {
                 self.view_placeholder(fl!("applet-settings-title"), String::new(), "")
@@ -162,6 +172,7 @@ impl cosmic::Application for AppModel {
             battery_backend::subscription().map(Message::BatteryChanged),
             battery_backend::brightness_subscription().map(Message::BrightnessChanged),
             bt::subscription().map(Message::BluetoothUpdate),
+            net::subscription().map(Message::NetworkUpdate),
         ];
         if self.confirm_deadline.is_some() {
             subs.push(cosmic::iced::time::every(Duration::from_secs(1)).map(Message::Tick));
@@ -280,6 +291,28 @@ impl cosmic::Application for AppModel {
             Message::BluetoothUpdate(bt::Update::Ready(tx)) => self.bluetooth_tx = Some(tx),
             Message::BluetoothUpdate(bt::Update::State(state)) => self.bluetooth = state,
             Message::Bluetooth(command) => self.bluetooth_command(command),
+            Message::NetworkUpdate(net::Update::Ready(tx)) => self.network_tx = Some(tx),
+            Message::NetworkUpdate(net::Update::State(state)) => self.network = *state,
+            Message::Network(command) => self.network_command(command),
+            Message::SelectNetwork(ssid) => {
+                if let Some(ap) = self
+                    .network
+                    .access_points
+                    .iter()
+                    .find(|a| a.ssid == ssid)
+                    .cloned()
+                {
+                    self.select_network(&ap);
+                }
+            }
+            Message::PasswordInput(password) => {
+                if let Some(prompt) = &mut self.password_prompt {
+                    prompt.password = password;
+                }
+            }
+            Message::PasswordSubmit => self.submit_password(),
+            Message::PasswordCancel => self.password_prompt = None,
+            Message::Airplane(on) => self.set_airplane(on),
             Message::Done => {}
         }
         Task::none()
@@ -315,6 +348,12 @@ impl AppModel {
         } else if page == Page::Bluetooth && self.page != Page::Bluetooth && self.bluetooth.powered
         {
             self.bluetooth_command(bt::Command::Scan(true));
+        }
+        if page == Page::Network && self.page != Page::Network {
+            self.network_command(net::Command::Scan);
+        }
+        if page != Page::Network {
+            self.password_prompt = None;
         }
         self.page = page;
     }
@@ -382,16 +421,14 @@ impl AppModel {
         let mut column = widget::Column::new().padding([8, 0]);
         let mut tiles = Vec::new();
         let mut power_buttons = false;
+        // Airplane (or VPN on machines without Wi-Fi) goes last among the tiles.
+        let mut second = None;
         for section in self.config.visible_sections() {
             match section {
-                Section::Network => tiles.push(ui::tile(
-                    "network-wireless-symbolic",
-                    fl!("network"),
-                    String::new(),
-                    false,
-                    Some(Message::Open(Page::Network)),
-                    Some(Message::Open(Page::Network)),
-                )),
+                Section::Network => {
+                    tiles.extend(self.network_tile());
+                    second = self.second_network_tile();
+                }
                 Section::Bluetooth => tiles.extend(self.bluetooth_tile()),
                 Section::Volume => {
                     if let Some(slider) = self.sink_slider() {
@@ -417,6 +454,7 @@ impl AppModel {
                 }
             }
         }
+        tiles.extend(second);
         if !tiles.is_empty() {
             column = column.push(ui::tile_grid(tiles));
         }

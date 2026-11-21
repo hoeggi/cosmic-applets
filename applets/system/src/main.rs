@@ -6,6 +6,7 @@ mod battery;
 mod bluetooth;
 mod config;
 mod i18n;
+mod network;
 mod power;
 // Some helpers are only used by later milestones.
 #[allow(dead_code)]
