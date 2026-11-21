@@ -6,9 +6,9 @@
   <name>Cosmic Applet Commands</name>
   <summary>Run configurable commands from the COSMIC panel</summary>
   <icon type="remote" width="64" height="64" scale="1">
-    https://github.com/hoeggi/cosmic-applet-commands/raw/main/resources/icons/hicolor/scalable/apps/icon.svg
+    https://github.com/hoeggi/cosmic-applets/raw/main/applets/commands/resources/icon.svg
   </icon>
-  <url type="vcs-browser">https://github.com/hoeggi/cosmic-applet-commands</url>
+  <url type="vcs-browser">https://github.com/hoeggi/cosmic-applets</url>
   <launchable type="desktop-id">at.hoeggi.CosmicAppletCommands.desktop</launchable>
   <provides>
     <id>com.system76.CosmicApplet</id>

@@ -6,9 +6,9 @@
   <name>Cosmic Applet HeadsetControl</name>
   <summary>Battery, chatmix and settings for USB headsets via headsetcontrol</summary>
   <icon type="remote" width="64" height="64" scale="1">
-    https://github.com/hoeggi/cosmic-applet-headsetcontrol/raw/main/resources/icons/hicolor/scalable/apps/icon.svg
+    https://github.com/hoeggi/cosmic-applets/raw/main/applets/headsetcontrol/resources/icon.svg
   </icon>
-  <url type="vcs-browser">https://github.com/hoeggi/cosmic-applet-headsetcontrol</url>
+  <url type="vcs-browser">https://github.com/hoeggi/cosmic-applets</url>
   <launchable type="desktop-id">at.hoeggi.CosmicAppletHeadsetControl.desktop</launchable>
   <provides>
     <id>com.system76.CosmicApplet</id>
