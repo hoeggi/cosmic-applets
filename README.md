@@ -33,7 +33,8 @@ Then add the applet in **Settings → Desktop → Panel → Applets**.
 
 Everything runs in a Podman container (`ENGINE=docker` works too), so no Rust toolchain is
 needed on the host. The `cosmic-applet-builder` image is reused across checkouts and only
-rebuilt when `container/Containerfile` changes.
+rebuilt when `container/Containerfile` changes. Cargo's download cache lives in `.cache/`; a git worktree
+uses the main checkout's, so dependencies are downloaded only once per repository.
 
     make build                          # all applets (APPLET=<name> for one)
     make check test                     # fmt + clippy, unit tests

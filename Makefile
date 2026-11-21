@@ -28,8 +28,16 @@ endif
 # Allocate a TTY only when make itself runs in one.
 TTY := $(shell [ -t 0 ] && echo -it)
 
-RUN := $(ENGINE) run --rm $(TTY) $(USERFLAGS) \
-	-v $(CURDIR):/src -w /src \
+# One cargo download cache per repository: in a git worktree, .cache/ of the main checkout is
+# mounted over the worktree's, so crates and git dependencies are downloaded only once. Both
+# directories are created first, as the user: a mount point podman creates itself would belong
+# to a subordinate uid and break later runs.
+GIT_COMMON  := $(shell git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+CACHE       := $(if $(GIT_COMMON),$(dir $(GIT_COMMON)).cache,$(CURDIR)/.cache)
+CACHE_MOUNT := $(if $(filter $(CURDIR)/.cache,$(CACHE)),,-v $(CACHE):/src/.cache)
+
+RUN := mkdir -p .cache $(CACHE) && $(ENGINE) run --rm $(TTY) $(USERFLAGS) \
+	-v $(CURDIR):/src -w /src $(CACHE_MOUNT) \
 	-e HOME=/tmp -e USER=$(USER) -e CARGO_HOME=/src/.cache/cargo \
 	$(IMAGE)
 
