@@ -10,9 +10,9 @@ Design: `docs/system-mockups`. Licensing rules: `docs/LICENSING.md`.
 |---|---|---|---|
 | 1 | Scaffold: crate, license, packaging, panel button, page navigation, config | done | d27c5fb |
 | 2 | Power buttons, confirmation with countdown, settings entry points | done | 6c29c50 |
-| 3 | Audio: sliders, Output tile, Sound page, scroll on the panel icon | done | see git log |
-| 4 | Battery, power profiles, brightness | next | |
-| 5 | Bluetooth | | |
+| 3 | Audio: sliders, Output tile, Sound page, scroll on the panel icon | done | 2ce2cee |
+| 4 | Battery header and page, power profiles, charge limit, peripherals, brightness | done | see git log |
+| 5 | Bluetooth | next | |
 | 6 | Network, airplane mode | | |
 | 7 | Panel icons, alerts, settings page | | |
 
@@ -59,6 +59,12 @@ Chosen here (tell me if you want it different):
   panel icon changes the volume in 5 % steps.
 - Log out asks first, like Restart and Shut down. Lock and Suspend act at once.
 - Closing the popup cancels a pending countdown.
+
+## Known gaps
+
+- Charge limit: uses UPower's charge-threshold API, which this machine's UPower 1.90.3 doesn't
+  expose, so the toggle stays hidden here. system76-power's `SetChargeThresholds` could back
+  it on Pop!_OS; not done.
 
 ## Lockfile
 

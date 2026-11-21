@@ -41,3 +41,28 @@ input = Input
 muted = Muted
 no-output = No output
 audio-unavailable = The audio service (cosmic-settings-daemon) isn't running.
+
+# Battery
+power-mode = Power mode
+time-left = { $hours ->
+    [0] { $minutes } min left
+   *[other] { $hours } h { $minutes } min left
+}
+until-full = { $hours ->
+    [0] { $minutes } min until full
+   *[other] { $hours } h { $minutes } min until full
+}
+fully-charged = Fully charged
+not-charging = Plugged in, not charging
+charging = Charging
+on-battery = On battery
+battery-low = Battery low
+charge-limit = Limit charge to { $percent }%
+charge-limit-description = Protects the battery when mostly plugged in
+connected-devices = Connected devices
+profile-power-saver = Battery saver
+profile-balanced = Balanced
+profile-performance = Performance
+profile-power-saver-description = Lower performance, longer runtime
+profile-balanced-description = Standard performance and power use
+profile-performance-description = Higher performance and power use

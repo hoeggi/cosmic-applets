@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::audio;
+use crate::battery as battery_backend;
 use crate::config::{Config, Section};
 use crate::fl;
 use crate::power::PowerAction;
@@ -15,6 +16,7 @@ use cosmic_applet_common::widgets::section_divider;
 use cosmic_applet_common::{config as cfg, popup};
 use std::time::{Duration, Instant};
 
+mod battery;
 mod sound;
 
 pub const APP_ID: &str = "at.hoeggi.CosmicAppletSystem";
@@ -53,6 +55,10 @@ pub struct AppModel {
     audio: audio::Model,
     sink_volume: audio::Debounced,
     source_volume: audio::Debounced,
+    battery: battery_backend::Battery,
+    /// Display brightness in percent; `None` without a backlight.
+    brightness: Option<u32>,
+    brightness_debounce: battery_backend::Debounced,
 }
 
 #[derive(Debug, Clone)]
@@ -78,6 +84,11 @@ pub enum Message {
     ToggleSinkMute,
     ToggleSourceMute,
     SetDefault(u32),
+    BatteryChanged(battery_backend::Battery),
+    BrightnessChanged(Option<u32>),
+    Brightness(u32),
+    SetProfile(String),
+    SetChargeLimit(bool),
     /// A background task finished; nothing to do.
     Done,
 }
@@ -123,7 +134,7 @@ impl cosmic::Application for AppModel {
     fn view_window(&self, _id: Id) -> Element<'_, Self::Message> {
         let content = match self.page {
             Page::Main => self.view_main(),
-            Page::Battery => self.view_placeholder(fl!("battery"), fl!("power-settings"), "power"),
+            Page::Battery => self.view_battery(),
             Page::Sound => self.view_sound(),
             Page::Network => {
                 self.view_placeholder(fl!("network"), fl!("network-settings"), "network")
@@ -144,6 +155,8 @@ impl cosmic::Application for AppModel {
         let mut subs = vec![
             cfg::watch::<Config>(self.core(), Self::APP_ID).map(Message::UpdateConfig),
             audio::subscription().map(Message::Audio),
+            battery_backend::subscription().map(Message::BatteryChanged),
+            battery_backend::brightness_subscription().map(Message::BrightnessChanged),
         ];
         if self.confirm_deadline.is_some() {
             subs.push(cosmic::iced::time::every(Duration::from_secs(1)).map(Message::Tick));
@@ -237,6 +250,28 @@ impl cosmic::Application for AppModel {
                 }
             }
             Message::SetDefault(id) => return audio_task(audio::Command::SetDefault(id)),
+            Message::BatteryChanged(battery) => self.battery = battery,
+            Message::BrightnessChanged(brightness) => {
+                // Ignore echoes while a slider change is still being sent.
+                if !self.brightness_debounce.is_pending() {
+                    self.brightness = brightness;
+                }
+            }
+            Message::Brightness(percent) => return self.set_brightness(percent),
+            Message::SetProfile(profile) => {
+                self.battery.profile = Some(profile.clone());
+                return Task::perform(battery_backend::set_profile(profile), |()| {
+                    cosmic::Action::App(Message::Done)
+                });
+            }
+            Message::SetChargeLimit(enabled) => {
+                if let Some((_, end)) = self.battery.charge_limit {
+                    self.battery.charge_limit = Some((enabled, end));
+                }
+                return Task::perform(battery_backend::set_charge_limit(enabled), |()| {
+                    cosmic::Action::App(Message::Done)
+                });
+            }
             Message::Done => {}
         }
         Task::none()
@@ -358,17 +393,16 @@ impl AppModel {
                     }
                 }
                 Section::Battery => {
-                    column = column.push(
-                        cosmic::applet::menu_button(
-                            widget::Row::new()
-                                .push(text::body(fl!("battery")).width(Length::Fill))
-                                .push(icon::from_name("go-next-symbolic").size(16).icon()),
-                        )
-                        .on_press(Message::Open(Page::Battery)),
-                    );
+                    if let Some(header) = self.battery_header() {
+                        column = column.push(header).push(section_divider());
+                    }
                 }
                 Section::PowerButtons => power_buttons = true,
-                Section::Brightness => {}
+                Section::Brightness => {
+                    if let Some(slider) = self.brightness_slider() {
+                        column = column.push(slider);
+                    }
+                }
             }
         }
         if !tiles.is_empty() {
