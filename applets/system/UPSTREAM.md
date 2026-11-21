@@ -18,6 +18,7 @@ workspace's libcosmic (`dd108aa`) matches that commit's `Cargo.lock`.
 |---|---|---|
 | `cosmic-applet-battery/src/backend/mod.rs`, `power_daemon.rs`, `power_profiles.rs` | `src/upstream/battery/` (same names) | Verbatim: power profiles (system76-power, then power-profiles-daemon) and the system76-power charge limit. |
 | `cosmic-applet-battery/src/app.rs` | `src/upstream/battery/app.rs` | `update_battery` (icon), `screen_brightness_percent`, `update_display` (brightness icon) and the `SetScreenBrightness` snapping, as free functions. |
+| `cosmic-applet-power/src/lib.rs` ("System helpers"), `cosmic_session.rs`, `session_manager.rs` | `src/upstream/power/mod.rs`, `cosmic_session.rs`, `session_manager.rs` | The five helpers (restart, shutdown, suspend, lock, log out) and the two proxies, verbatim. |
 | `cosmic-applet-bluetooth/src/bluetooth.rs` | `src/upstream/bluetooth.rs` | Whole file, verbatim: the `bluer` subscription, requests and pairing agent. |
 | `cosmic-applet-network/src/app.rs` | `src/upstream/network.rs` | Backend part only: the state types, `snapshot_to_applet`, `network_type`, `wifi_security`, `wifi_icon`, `HwAddress`, `active_conn_hw_address`. The applet struct, UI, task wrappers and secret agent are left out. |
 
@@ -55,6 +56,11 @@ Adapters:
 `src/upstream/battery/app.rs`:
 - Upstream's methods and handler code as free functions taking the fields they read; bodies
   unchanged.
+
+`src/upstream/power/mod.rs`:
+- The helpers are `pub`, and the proxies are imported from `self::` instead of `crate::`.
+  Upstream's applet asks cosmic-osd to confirm restart and shut down; our popup asks itself
+  (`src/power.rs` decides which actions ask), then calls these helpers.
 
 `src/upstream/bluetooth.rs`:
 - `#![allow(dead_code, unreachable_patterns, clippy::collapsible_if, clippy::while_let_loop)]`:

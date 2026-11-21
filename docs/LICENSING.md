@@ -55,6 +55,7 @@ The MPL-2.0 text is in [`LICENSE`](../LICENSE). A GPL applet ships the GPL-3.0 t
 |---|---|---|
 | `dbus-settings-bindings`: `bluez-zbus`, `cosmic-dbus-networkmanager`, `cosmic-settings-daemon` | MPL-2.0 (verified) | yes |
 | `dbus-settings-bindings`: `upower_dbus` | MIT (verified) | yes |
+| `dbus-settings-bindings`: `cosmic-login1-zbus` (logind, as upstream's power applet) | MPL-2.0 (verified) | yes |
 | `cosmic-settings-audio-client` / `-audio-core` (from `cosmic-settings-daemon`) | MPL-2.0 (verified) | yes |
 | `cosmic-settings-daemon` itself, its `audio-server` and `varlink-server` | GPL-3.0 (verified) | no; not a dependency, the applet only talks to the running daemon |
 | `cosmic-settings-upower-subscription` (battery, as upstream's battery applet) | MPL-2.0 (verified: `license` field and SPDX headers) | yes |

@@ -1,11 +1,10 @@
-// Copyright 2023 System76 <info@system76.com>
-// Copyright 2026 Daniel Hoeggerl
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Lock, log out, suspend, restart and shut down. Adapted from cosmic-applet-power, with the
-//! login1 proxies written for the zbus version this workspace uses.
+//! The power row's actions: lock, log out, suspend, restart and shut down. Which ones ask first
+//! is ours (upstream's applet hands restart and shut down to cosmic-osd); performing them is
+//! upstream's code in `crate::upstream::power`.
 
-use zbus::{Connection, OwnedObjectPath, proxy};
+use crate::upstream::power as up;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PowerAction {
@@ -44,115 +43,16 @@ impl PowerAction {
         )
     }
 
+    /// Upstream's helper for the action (`crate::upstream::power`).
     pub async fn perform(self) -> Result<(), String> {
-        let result = async {
-            match self {
-                PowerAction::Lock => lock().await,
-                PowerAction::LogOut => log_out().await,
-                PowerAction::Suspend => manager().await?.suspend(true).await,
-                PowerAction::Restart => manager().await?.reboot(true).await,
-                PowerAction::Shutdown => manager().await?.power_off(true).await,
-            }
-        }
-        .await;
-        result.map_err(|err| err.to_string())
-    }
-}
-
-#[proxy(
-    interface = "org.freedesktop.login1.Manager",
-    default_service = "org.freedesktop.login1",
-    default_path = "/org/freedesktop/login1"
-)]
-trait Manager {
-    fn get_user(&self, uid: u32) -> zbus::Result<OwnedObjectPath>;
-    fn power_off(&self, interactive: bool) -> zbus::Result<()>;
-    fn reboot(&self, interactive: bool) -> zbus::Result<()>;
-    fn suspend(&self, interactive: bool) -> zbus::Result<()>;
-}
-
-#[proxy(
-    interface = "org.freedesktop.login1.User",
-    default_service = "org.freedesktop.login1"
-)]
-trait User {
-    #[zbus(property)]
-    fn sessions(&self) -> zbus::Result<Vec<(String, OwnedObjectPath)>>;
-}
-
-#[proxy(
-    interface = "org.freedesktop.login1.Session",
-    default_service = "org.freedesktop.login1"
-)]
-trait Session {
-    fn lock(&self) -> zbus::Result<()>;
-    #[zbus(property)]
-    fn class(&self) -> zbus::Result<String>;
-    #[zbus(property, name = "Type")]
-    fn kind(&self) -> zbus::Result<String>;
-}
-
-#[proxy(
-    interface = "com.system76.CosmicSession",
-    default_service = "com.system76.CosmicSession",
-    default_path = "/com/system76/CosmicSession"
-)]
-trait CosmicSession {
-    fn exit(&self) -> zbus::Result<()>;
-}
-
-#[proxy(
-    interface = "org.gnome.SessionManager",
-    default_service = "org.gnome.SessionManager",
-    default_path = "/org/gnome/SessionManager"
-)]
-trait GnomeSessionManager {
-    fn logout(&self, mode: u32) -> zbus::Result<()>;
-}
-
-async fn manager() -> Result<ManagerProxy<'static>, zbus::Error> {
-    let connection = Connection::system().await?;
-    ManagerProxy::new(&connection).await
-}
-
-/// Locks every graphical session of this user.
-async fn lock() -> zbus::Result<()> {
-    let connection = Connection::system().await?;
-    let manager = ManagerProxy::new(&connection).await?;
-    let uid = rustix::process::getuid().as_raw();
-    let user = UserProxy::builder(&connection)
-        .path(manager.get_user(uid).await?)
-        .build()
-        .await?;
-    let mut locked = false;
-    for (_, path) in user.sessions().await? {
-        let Ok(session) = SessionProxy::builder(&connection).path(path).build().await else {
-            continue;
+        let result = match self {
+            PowerAction::Lock => up::lock().await,
+            PowerAction::LogOut => up::log_out().await,
+            PowerAction::Suspend => up::suspend().await,
+            PowerAction::Restart => up::restart().await,
+            PowerAction::Shutdown => up::shutdown().await,
         };
-        if session.class().await.is_ok_and(|c| c == "user")
-            && session.kind().await.is_ok_and(|t| t != "tty")
-            && session.lock().await.is_ok()
-        {
-            locked = true;
-        }
-    }
-    if locked {
-        Ok(())
-    } else {
-        Err(zbus::Error::Failure("locking the session failed".into()))
-    }
-}
-
-async fn log_out() -> zbus::Result<()> {
-    let connection = Connection::session().await?;
-    let desktop = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default();
-    if desktop.trim() == "pop:GNOME" {
-        GnomeSessionManagerProxy::new(&connection)
-            .await?
-            .logout(0)
-            .await
-    } else {
-        CosmicSessionProxy::new(&connection).await?.exit().await
+        result.map_err(|err| err.to_string())
     }
 }
 

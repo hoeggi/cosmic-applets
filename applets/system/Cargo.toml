@@ -33,6 +33,9 @@ secure-string = "0.3"
 i18n-embed-fl.workspace = true
 libcosmic.workspace = true
 rust-embed.workspace = true
+# Upstream's power helpers (cosmic-applet-power) use logind through this, at the revision
+# cosmic-applets ecb6b61 pins.
+cosmic-login1-zbus = { git = "https://github.com/pop-os/dbus-settings-bindings", rev = "6ccc9fbf034220f0142bc907a7d7513b49aba0e1" }
 # getuid() for locking this user's sessions.
 rustix = { version = "1.1", features = ["process"] }
 serde.workspace = true

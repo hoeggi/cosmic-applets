@@ -1069,6 +1069,7 @@ dependencies = [
  "anyhow",
  "bluer",
  "cosmic-applet-common",
+ "cosmic-login1-zbus",
  "cosmic-settings-audio-client",
  "cosmic-settings-daemon-subscription",
  "cosmic-settings-upower-subscription",
@@ -1203,6 +1204,15 @@ dependencies = [
  "tokio",
  "tracing",
  "which",
+ "zbus 6.5.0",
+]
+
+[[package]]
+name = "cosmic-login1-zbus"
+version = "1.0.0"
+source = "git+https://github.com/pop-os/dbus-settings-bindings?rev=6ccc9fbf034220f0142bc907a7d7513b49aba0e1#6ccc9fbf034220f0142bc907a7d7513b49aba0e1"
+dependencies = [
+ "serde",
  "zbus 6.5.0",
 ]
 
