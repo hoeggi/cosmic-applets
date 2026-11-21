@@ -23,7 +23,6 @@ Full gate (`fmt --check`, workspace clippy `-D warnings`, workspace tests) passe
 
 - Try it in the panel (`make deb` then install, or `make run APPLET=system`) and check every
   page; nothing has been seen on screen yet.
-- A Bluetooth pairing agent for PIN and passkey devices.
 - Decide whether the Microphone panel icon is worth a PipeWire query for recording streams.
 
 ## How to run and check
@@ -67,13 +66,19 @@ Decided by the user (2026-11-21):
   opens the Network page; Wi-Fi on/off lives on that page. On desktops the VPN tile in the free
   slot keeps its toggle and chevron.
 
-Chosen here (tell me if you want it different):
+Proposed here and confirmed by the user (2026-11-21):
 - The Output tile's body toggles mute; its chevron opens the Sound page. Scrolling on the
   panel icon changes the volume in 5 % steps.
 - Log out asks first, like Restart and Shut down. Lock and Suspend act at once.
-- Closing the popup cancels a pending countdown.
 - The Bluetooth tile's body switches Bluetooth on and off. The Bluetooth page scans while it is
   open and stops when it is left or the popup closes.
+- Airplane mode works in software (NetworkManager + BlueZ, no rfkill); a hardware airplane key
+  isn't reflected separately.
+- Section order in the settings uses up/down arrows; no drag handles.
+- No Bluetooth pairing agent of our own: PIN/passkey devices pair through COSMIC Settings.
+
+Chosen here, not discussed:
+- Closing the popup cancels a pending countdown.
 
 ## Known gaps
 
@@ -84,12 +89,10 @@ Chosen here (tell me if you want it different):
 - The other five alerts work: no network, low battery (< 10 % discharging), muted output, a
   connected Bluetooth device below 20 %, and a VPN that went down without being switched off
   in the applet.
-- Section order uses up/down arrows instead of the mockup's drag handles.
 
-
-- Bluetooth pairing registers no agent of its own. Devices that need a PIN or a passkey
-  confirmation only pair if another agent runs (e.g. COSMIC Settings' Bluetooth page); "Just
-  works" devices pair directly.
+- Bluetooth pairing registers no agent of its own (by decision). Devices that need a PIN or a
+  passkey confirmation only pair if another agent runs (e.g. COSMIC Settings' Bluetooth page);
+  "Just works" devices pair directly.
 
 - Wi-Fi: joining a new secured network asks for a WPA/WPA2 personal password inline.
   Enterprise (802.1X) and WEP networks aren't handled; use Network settings… for those.
