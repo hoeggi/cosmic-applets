@@ -46,9 +46,12 @@ def tiles(*ts):
 
 
 def player(title, sub, playing=False, art="audio-x-generic", prev=True, nxt=True):
-    """One MPRIS player: art, title and artist, previous / play-pause / next. Clicking the row raises the app."""
-    ctl = (ib("media-skip-backward") if prev else "") + ib("media-playback-pause" if playing else "media-playback-start") + \
-        (ib("media-skip-forward") if nxt else "")
+    """One MPRIS player: art, title and artist, previous / play-pause / next. Clicking the row raises the app.
+    All three buttons are always there so the rows line up; unsupported ones are greyed out."""
+    def btn(name, on):
+        return ib(name) if on else f'<span class="ib dis">{i(name)}</span>'
+    ctl = btn("media-skip-backward", prev) + btn("media-playback-pause" if playing else "media-playback-start", True) + \
+        btn("media-skip-forward", nxt)
     return (f'<div class="row mrow"><span class="art">{i(art)}</span><div class="t"><div class="n">{title}</div>'
             f'<div class="c">{sub}</div></div><div class="r ctl">{ctl}</div></div>')
 
@@ -267,7 +270,7 @@ PANEL = '<section class="wide"><h2>Panel: one button for all five areas</h2><div
 SCREENS = "".join([
     heading("Main popup",
             "Everything everyday fits on one page. Every chevron (battery header and tiles) opens that area's detail page. Bluetooth, Output and Airplane toggle on click; the Network tile only opens its page, and Airplane has no page, so no chevron. The bottom row ends with a button for the COSMIC Settings app, and Applet settings… below it opens this applet's own settings."),
-    screen("m1", "1. Main", "Battery on top, sliders in the middle, tiles for the switchable parts, then one row per media player (Spotify, each VLC window, …) with previous / play-pause / next; clicking a row brings that app to the front. The media rows disappear while nothing is playing, as in the other variants. Power buttons at the bottom.", main_page),
+    screen("m1", "1. Main", "Battery on top, sliders in the middle, tiles for the switchable parts, then one row per media player (Spotify, each VLC window, …) with previous / play-pause / next, always all three so the rows line up (greyed out when a player can't do it); clicking a row brings that app to the front. The media rows disappear while nothing is playing, as in the other variants. Power buttons at the bottom.", main_page),
     screen("m2", "2. Low battery", "Below 10% the header turns red, and a banner explains what changed automatically.", low),
     screen("m3", "3. Airplane mode, muted", "Off tiles stay in place and only lose their accent colour, so the layout never jumps.", airplane),
     screen("m4", "4. Ethernet + Wi-Fi + VPN", "The Network tile always shows the connection in use: Ethernet, plus the VPN. Wi-Fi on/off lives on the Network page.", both),
