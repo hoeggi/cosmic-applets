@@ -1,6 +1,6 @@
 # System applet: build status
 
-Branch `system` (local, not pushed), worktree `.worktrees/system`, crate `applets/system`
+Branch `system` (local, not pushed), checked out in the main checkout, crate `applets/system`
 (`cosmic-applet-system`, APP_ID `at.hoeggi.CosmicAppletSystem`), **GPL-3.0-only**.
 Design: `docs/system-mockups`. Licensing rules: `docs/LICENSING.md`. Upstream ports and how to
 update them: `applets/system/UPSTREAM.md`.
@@ -55,7 +55,7 @@ every media player (a marked addition to upstream's subscription).
 
 ## Try in the panel
 
-Install from the worktree with `make install APPLET=system`, then `make reload-panel`.
+Install with `make install APPLET=system`, then `make reload-panel`.
 Things to check:
 - Network page with the USB Ethernet adapter: both wired ports listed, the USB one "Connected"
   and "In use", the built-in one "Cable unplugged"; Network tile shows "Ethernet".
