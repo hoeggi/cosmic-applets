@@ -20,6 +20,12 @@ cosmic-settings-audio-client = { git = "https://github.com/pop-os/cosmic-setting
 futures-channel = "0.3"
 futures-util = "0.3"
 i18n-embed.workspace = true
+# Upstream's Bluetooth backend (cosmic-applet-bluetooth) is built on these.
+anyhow = "1"
+bluer = { version = "0.17", features = ["bluetoothd", "id"] }
+fastrand = "2.3"
+futures = "0.3"
+rustc-hash = "2.1"
 # Upstream's network model (cosmic-applet-network) is built on these.
 indexmap = "2.13"
 nmrs = "3.5.7"

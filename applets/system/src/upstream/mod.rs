@@ -4,4 +4,5 @@
 //! Changes are marked `// system-applet:`. See `UPSTREAM.md` for the file mapping and how to
 //! update.
 
+pub mod bluetooth;
 pub mod network;

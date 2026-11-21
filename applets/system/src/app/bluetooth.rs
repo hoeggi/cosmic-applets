@@ -3,7 +3,7 @@
 //! The Bluetooth tile and page.
 
 use super::{AppModel, Message, Page};
-use crate::bluetooth::{BtDevice, Command};
+use crate::adapter::bluetooth::{BtDevice, Command, Confirmation, DeviceState};
 use crate::fl;
 use crate::ui;
 use cosmic::applet::padded_control;
@@ -13,10 +13,9 @@ use cosmic::widget::{self, button, text};
 use cosmic_applet_common::widgets::{icon_button, section_divider};
 
 impl AppModel {
-    pub(super) fn bluetooth_command(&self, command: Command) {
-        if let Some(tx) = &self.bluetooth_tx {
-            _ = tx.send(command);
-        }
+    pub(super) fn bluetooth_command(&mut self, command: Command) {
+        self.bluetooth_model.command(command);
+        self.bluetooth = self.bluetooth_model.view();
     }
 
     pub(super) fn bluetooth_tile(&self) -> Option<Element<'_, Message>> {
@@ -75,11 +74,13 @@ impl AppModel {
                     ),
                 ))
                 .push(section_divider());
+            if let Some(confirmation) = &bt.confirmation {
+                column = column.push(confirmation_view(confirmation));
+            }
             if bt.powered {
-                let paired: Vec<_> = bt.paired().collect();
-                if !paired.is_empty() {
+                if !bt.known.is_empty() {
                     column = column.push(ui::group_label(fl!("my-devices")));
-                    for device in paired {
+                    for device in &bt.known {
                         column = column.push(device_row(device));
                     }
                 }
@@ -99,11 +100,10 @@ impl AppModel {
                     )
                     .padding([6, 16, 0, 16]),
                 );
-                let nearby: Vec<_> = bt.nearby().collect();
-                if nearby.is_empty() {
+                if bt.nearby.is_empty() {
                     column = column.push(ui::note(fl!("searching")));
                 }
-                for device in nearby {
+                for device in &bt.nearby {
                     column = column.push(device_row(device));
                 }
             }
@@ -119,28 +119,82 @@ impl AppModel {
 }
 
 fn device_row(device: &BtDevice) -> Element<'_, Message> {
-    let mut subtitle = None;
-    let (label, command) = if !device.paired {
-        (fl!("pair"), Command::Pair(device.path.clone()))
-    } else if device.connected {
-        subtitle = Some(match device.battery {
-            Some(battery) => fl!("connected-battery", percent = battery),
-            None => fl!("connected"),
-        });
-        (fl!("disconnect"), Command::Disconnect(device.path.clone()))
-    } else {
-        subtitle = Some(fl!("not-connected"));
-        (fl!("connect"), Command::Connect(device.path.clone()))
+    let address = device.address;
+    let (subtitle, action) = match device.state {
+        DeviceState::Connected => (
+            Some(match device.battery {
+                Some(battery) => fl!("connected-battery", percent = battery),
+                None => fl!("connected"),
+            }),
+            Some((fl!("disconnect"), Command::Disconnect(address))),
+        ),
+        DeviceState::Paired => (
+            Some(fl!("not-connected")),
+            Some((fl!("connect"), Command::Connect(address))),
+        ),
+        DeviceState::New => (None, Some((fl!("pair"), Command::Pair(address)))),
+        // In progress: no button until BlueZ reports the result, like upstream.
+        DeviceState::Connecting => (Some(fl!("connecting")), None),
+        DeviceState::Disconnecting => (Some(fl!("disconnecting")), None),
+        DeviceState::Pairing => (Some(fl!("pairing")), None),
     };
-    let action = button::text(label)
-        .on_press(Message::Bluetooth(command))
-        .into();
+    let trailing = action
+        .map(|(label, command)| {
+            button::text(label)
+                .on_press(Message::Bluetooth(command))
+                .into()
+        })
+        .into_iter()
+        .collect();
     ui::choice_row(
-        device.icon_name(),
+        device.icon,
         device.name.clone(),
         subtitle,
-        device.connected,
-        vec![action],
+        device.connected(),
+        trailing,
         None,
     )
+}
+
+/// Upstream's PIN confirmation: the device, the PIN to compare, Cancel and Confirm.
+fn confirmation_view(confirmation: &Confirmation) -> Element<'_, Message> {
+    padded_control(
+        widget::Column::new()
+            .push(
+                widget::Row::new()
+                    .push(
+                        widget::icon::from_name(confirmation.icon)
+                            .size(16)
+                            .symbolic(true),
+                    )
+                    .push(text::body(confirmation.device.clone()))
+                    .spacing(12)
+                    .align_y(Alignment::Center),
+            )
+            .push(text::body(fl!(
+                "confirm-pin",
+                device = confirmation.device.clone()
+            )))
+            .push(
+                text::title3(confirmation.pin.clone())
+                    .width(Length::Fill)
+                    .align_x(Alignment::Center),
+            )
+            .push(
+                widget::Row::new()
+                    .push(widget::space::horizontal())
+                    .push(
+                        button::standard(fl!("cancel"))
+                            .on_press(Message::Bluetooth(Command::Confirm(false))),
+                    )
+                    .push(
+                        button::suggested(fl!("confirm"))
+                            .on_press(Message::Bluetooth(Command::Confirm(true))),
+                    )
+                    .spacing(8),
+            )
+            .spacing(8),
+    )
+    .padding([6, 16])
+    .into()
 }

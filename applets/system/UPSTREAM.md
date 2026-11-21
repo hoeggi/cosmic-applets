@@ -16,10 +16,16 @@ workspace's libcosmic (`dd108aa`) matches that commit's `Cargo.lock`.
 
 | Upstream (at `ecb6b61`) | Here | How |
 |---|---|---|
+| `cosmic-applet-bluetooth/src/bluetooth.rs` | `src/upstream/bluetooth.rs` | Whole file, verbatim: the `bluer` subscription, requests and pairing agent. |
 | `cosmic-applet-network/src/app.rs` | `src/upstream/network.rs` | Backend part only: the state types, `snapshot_to_applet`, `network_type`, `wifi_security`, `wifi_icon`, `HwAddress`, `active_conn_hw_address`. The applet struct, UI, task wrappers and secret agent are left out. |
 
-Adapters: `src/adapter/network.rs` (view model, `nmrs` subscription and commands, the same
-`nmrs` calls as upstream's message handlers).
+Adapters:
+- `src/adapter/bluetooth.rs`: keeps upstream's state, request sender and PIN confirmation, does
+  upstream's optimistic status changes on requests, and splits devices into known and nearby
+  like upstream's popup. Scanning on the Bluetooth page uses upstream's `set_discovery` and
+  `set_tick` (3 s while open, 10 s otherwise), as upstream's popup does.
+- `src/adapter/network.rs`: view model, `nmrs` subscription and commands, the same `nmrs` calls
+  as upstream's message handlers.
 
 ## Updating
 
@@ -33,6 +39,10 @@ Adapters: `src/adapter/network.rs` (view model, `nmrs` subscription and commands
 4. Fix the adapters until the quick check passes; update the base commit in this file.
 
 ## `system-applet:` changes
+
+`src/upstream/bluetooth.rs`:
+- `#![allow(dead_code, unreachable_patterns, clippy::collapsible_if, clippy::while_let_loop)]`:
+  our workspace denies warnings; the code is unchanged.
 
 `src/upstream/network.rs`:
 - `#![allow(dead_code, clippy::unnecessary_sort_by)]`: unused upstream items and a newer clippy

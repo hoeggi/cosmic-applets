@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::adapter::bluetooth as bt;
 use crate::adapter::network as net;
 use crate::audio;
 use crate::battery as battery_backend;
-use crate::bluetooth as bt;
 use crate::config::{Config, Section};
 use crate::fl;
 use crate::panel;
@@ -65,8 +65,9 @@ pub struct AppModel {
     /// Display brightness in percent; `None` without a backlight.
     brightness: Option<u32>,
     brightness_debounce: battery_backend::Debounced,
+    /// Upstream's Bluetooth state and request sender; `bluetooth` is our view of it.
+    bluetooth_model: bt::Model,
     bluetooth: bt::Bluetooth,
-    bluetooth_tx: Option<tokio::sync::mpsc::UnboundedSender<bt::Command>>,
     network: net::Network,
     network_tx: Option<tokio::sync::mpsc::UnboundedSender<net::Command>>,
     password_prompt: Option<network::PasswordPrompt>,
@@ -104,7 +105,7 @@ pub enum Message {
     Brightness(u32),
     SetProfile(String),
     SetChargeLimit(bool),
-    BluetoothUpdate(bt::Update),
+    BluetoothUpdate(crate::upstream::bluetooth::BluerEvent),
     Bluetooth(bt::Command),
     NetworkUpdate(net::Update),
     Network(net::Command),
@@ -293,8 +294,10 @@ impl cosmic::Application for AppModel {
                     cosmic::Action::App(Message::Done)
                 });
             }
-            Message::BluetoothUpdate(bt::Update::Ready(tx)) => self.bluetooth_tx = Some(tx),
-            Message::BluetoothUpdate(bt::Update::State(state)) => self.bluetooth = state,
+            Message::BluetoothUpdate(event) => {
+                self.bluetooth_model.event(event);
+                self.bluetooth = self.bluetooth_model.view();
+            }
             Message::Bluetooth(command) => self.bluetooth_command(command),
             Message::NetworkUpdate(net::Update::Ready(tx)) => self.network_tx = Some(tx),
             Message::NetworkUpdate(net::Update::State(state)) => self.network_changed(*state),
