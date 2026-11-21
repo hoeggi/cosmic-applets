@@ -2,7 +2,6 @@
 
 mod adapter;
 mod app;
-mod audio;
 mod config;
 mod i18n;
 mod panel;

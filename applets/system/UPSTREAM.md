@@ -16,6 +16,8 @@ workspace's libcosmic (`dd108aa`) matches that commit's `Cargo.lock`.
 
 | Upstream (at `ecb6b61`) | Here | How |
 |---|---|---|
+| `cosmic-applet-audio/src/model.rs` | `src/upstream/audio/model.rs` | Verbatim: nodes named from their active route, unplugged inputs removed, sorted lists, the default device's volume and mute. |
+| `cosmic-applet-audio/src/lib.rs` | `src/upstream/audio/icons.rs` | `output_icon_name` and `input_icon_name` as free functions. |
 | `cosmic-applet-battery/src/backend/mod.rs`, `power_daemon.rs`, `power_profiles.rs` | `src/upstream/battery/` (same names) | Verbatim: power profiles (system76-power, then power-profiles-daemon) and the system76-power charge limit. |
 | `cosmic-applet-battery/src/app.rs` | `src/upstream/battery/app.rs` | `update_battery` (icon), `screen_brightness_percent`, `update_display` (brightness icon) and the `SetScreenBrightness` snapping, as free functions. |
 | `cosmic-applet-power/src/lib.rs` ("System helpers"), `cosmic_session.rs`, `session_manager.rs` | `src/upstream/power/mod.rs`, `cosmic_session.rs`, `session_manager.rs` | The five helpers (restart, shutdown, suspend, lock, log out) and the two proxies, verbatim. |
@@ -23,6 +25,10 @@ workspace's libcosmic (`dd108aa`) matches that commit's `Cargo.lock`.
 | `cosmic-applet-network/src/app.rs` | `src/upstream/network.rs` | Backend part only: the state types, `snapshot_to_applet`, `network_type`, `wifi_security`, `wifi_icon`, `HwAddress`, `active_conn_hw_address`. The applet struct, UI, task wrappers and secret agent are left out. |
 
 Adapters:
+- `src/adapter/audio.rs`: upstream's subscription loop and client calls (`set_sink_volume` /
+  `set_source_volume` 128 ms after the last slider change, `sink_mute_toggle` /
+  `source_mute_toggle`, `set_default`, one wheel step per 192 ms), and our device lists from
+  upstream's model. Ours in it: the device icons, which upstream's popup doesn't show.
 - `src/adapter/battery.rs`: upstream's battery handlers (UPower display device through
   `cosmic-settings-upower-subscription`, power profiles, charge limit, brightness through
   `cosmic-settings-daemon-subscription` with upstream's 200 ms send loop while dragging), and
@@ -48,6 +54,12 @@ Adapters:
 4. Fix the adapters until the quick check passes; update the base commit in this file.
 
 ## `system-applet:` changes
+
+`src/upstream/audio/mod.rs`:
+- `#[allow(dead_code)]` on `mod model` so `model.rs` stays verbatim.
+
+`src/upstream/audio/icons.rs`:
+- Upstream's methods as free functions taking volume and mute; bodies unchanged.
 
 `src/upstream/battery/mod.rs`:
 - `#![allow(dead_code, clippy::collapsible_if)]`: our workspace denies warnings.

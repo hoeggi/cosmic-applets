@@ -4,6 +4,7 @@
 //! `crate::upstream` into what our pages show, and our UI's commands into upstream calls. When
 //! upstream changes, only these modules should need adjusting. See `UPSTREAM.md`.
 
+pub mod audio;
 pub mod battery;
 pub mod bluetooth;
 pub mod network;

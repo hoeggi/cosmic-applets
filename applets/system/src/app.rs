@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::adapter::audio;
 use crate::adapter::battery as battery_backend;
 use crate::adapter::bluetooth as bt;
 use crate::adapter::network as net;
-use crate::audio;
 use crate::config::{Config, Section};
 use crate::fl;
 use crate::panel;
@@ -59,8 +59,8 @@ pub struct AppModel {
     /// Redraw tick for the countdown.
     now: Option<Instant>,
     audio: audio::Model,
-    sink_volume: audio::Debounced,
-    source_volume: audio::Debounced,
+    sink_volume: audio::Delayed,
+    source_volume: audio::Delayed,
     /// Upstream's battery, profile and brightness state; `battery` is our view of it.
     battery_model: battery_backend::Model,
     battery: battery_backend::Battery,
@@ -264,22 +264,16 @@ impl cosmic::Application for AppModel {
             Message::SinkVolume(volume) => return self.set_sink_volume(volume),
             Message::SourceVolume(volume) => return self.set_source_volume(volume),
             Message::ScrollVolume(delta) => {
-                if let Some(sink) = self.audio.sink() {
-                    let step = if delta > 0.0 { 5 } else { -5 };
-                    let volume = (sink.volume as i32 + step).clamp(0, 100) as u32;
-                    return self.set_sink_volume(volume);
+                // Upstream: 5 % per wheel event, at most one every 192 ms.
+                let step = if delta > 0.0 { 5.0 } else { -5.0 };
+                if self.audio.sink().is_some()
+                    && let Some(volume) = self.audio.wheel(step, Instant::now())
+                {
+                    return audio_task(audio::Command::SinkVolumeNow(volume));
                 }
             }
-            Message::ToggleSinkMute => {
-                if let Some(sink) = self.audio.sink() {
-                    return audio_task(audio::Command::SetMute(sink.id, !sink.mute));
-                }
-            }
-            Message::ToggleSourceMute => {
-                if let Some(source) = self.audio.source() {
-                    return audio_task(audio::Command::SetMute(source.id, !source.mute));
-                }
-            }
+            Message::ToggleSinkMute => return audio_task(audio::Command::ToggleSinkMute),
+            Message::ToggleSourceMute => return audio_task(audio::Command::ToggleSourceMute),
             Message::SetDefault(id) => return audio_task(audio::Command::SetDefault(id)),
             Message::BatteryEvent(event) => {
                 self.battery_model.event(event);

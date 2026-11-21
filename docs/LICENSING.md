@@ -65,6 +65,7 @@ The MPL-2.0 text is in [`LICENSE`](../LICENSE). A GPL applet ships the GPL-3.0 t
 | `indexmap` | Apache-2.0 OR MIT (verified) | yes |
 | `bluer` 0.17 (BlueZ, as upstream's Bluetooth applet; its `bluetoothd` feature needs `libdbus-1-dev` to build) | BSD-2-Clause (verified) | yes |
 | `anyhow`, `fastrand`, `rustc-hash`, `futures` | MIT OR Apache-2.0 (verified) | yes |
+| `intmap` (upstream's audio model) | MIT (verified) | yes |
 
 Check a crate's `license` field before adding it to `common/`, and update this table.
 

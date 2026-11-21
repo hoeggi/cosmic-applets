@@ -26,6 +26,8 @@ bluer = { version = "0.17", features = ["bluetoothd", "id"] }
 fastrand = "2.3"
 futures = "0.3"
 rustc-hash = "2.1"
+# Upstream's audio model (cosmic-applet-audio) uses this.
+intmap = "3.1.3"
 # Upstream's network model (cosmic-applet-network) is built on these.
 indexmap = "2.13"
 nmrs = "3.5.7"
