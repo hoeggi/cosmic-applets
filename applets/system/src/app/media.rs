@@ -4,14 +4,14 @@
 
 use super::{AppModel, Message};
 use crate::adapter::media::PlayerRow;
-use crate::fl;
+use crate::ui;
 use crate::upstream::audio::mpris_subscription::MprisRequest;
 use cosmic::iced::{Alignment, ContentFit, Length};
 use cosmic::prelude::*;
 use cosmic::widget::{self, button, icon, text};
 
 /// Size of the album art or its placeholder.
-const ART: f32 = 40.0;
+const ART: f32 = 32.0;
 
 // Upstream's icon names for the controls.
 const GO_BACK: &str = "media-skip-backward-symbolic";
@@ -36,7 +36,7 @@ fn player_row<'a>(row: PlayerRow) -> Element<'a, Message> {
             .into(),
         None => widget::container(
             icon::from_name("audio-x-generic-symbolic")
-                .size(20)
+                .size(16)
                 .symbolic(true)
                 .icon(),
         )
@@ -58,10 +58,11 @@ fn player_row<'a>(row: PlayerRow) -> Element<'a, Message> {
         }))
         .into(),
     };
-    let artist = row.artist.clone().unwrap_or_else(|| fl!("unknown-artist"));
-    let subtitle = match &row.app {
-        Some(app) => format!("{artist} · {app}"),
-        None => artist,
+    // "artist · app"; without an artist only the app, and nothing when neither is known.
+    let subtitle = match (&row.artist, &row.app) {
+        (Some(artist), Some(app)) => Some(format!("{artist} · {app}")),
+        (Some(text), None) | (None, Some(text)) => Some(text.clone()),
+        (None, None) => None,
     };
     let control = |name: &'static str, enabled: bool, request: MprisRequest| {
         button::icon(icon::from_name(name).symbolic(true))
@@ -77,8 +78,8 @@ fn player_row<'a>(row: PlayerRow) -> Element<'a, Message> {
         .push(art)
         .push(
             widget::Column::new()
-                .push(text::body(row.title.clone()))
-                .push(text::caption(subtitle))
+                .push(ui::one_line(text::body(row.title.clone())))
+                .push_maybe(subtitle.map(|s| ui::one_line(text::caption(s))))
                 .width(Length::Fill),
         )
         .push(control(GO_BACK, row.previous, MprisRequest::Previous))

@@ -120,4 +120,3 @@ confirm-shutdown-setting = Ask before shutting down
 
 # Media controls
 media-controls = Media controls
-unknown-artist = Unknown artist

@@ -86,31 +86,16 @@ fn is_play(info: &PlayerInfo) -> Option<bool> {
     }
 }
 
-/// Upstream's title and artist trimming in its popup (30 / 25 characters plus "...").
-fn trim(text: &str, max: usize, keep: usize) -> String {
-    if text.chars().count() > max {
-        let mut out = text.chars().take(keep).collect::<String>();
-        out.push_str("...");
-        out
-    } else {
-        text.to_owned()
-    }
-}
-
 pub fn row(info: &PlayerInfo) -> PlayerRow {
     let play = is_play(info);
     PlayerRow {
         id: info.id.clone(),
         art: info.art.clone(),
-        title: info
-            .title
-            .as_deref()
-            .map(|t| trim(t, 32, 30))
-            .unwrap_or_default(),
+        title: info.title.as_deref().map(str::to_owned).unwrap_or_default(),
         artist: info
             .artists
             .as_ref()
-            .map(|a| trim(&a.join(", "), 27, 25))
+            .map(|a| a.join(", "))
             .filter(|a| !a.is_empty()),
         app: info.identity.clone().filter(|i| !i.is_empty()),
         previous: info.can_go_previous,
@@ -283,14 +268,14 @@ mod tests {
     }
 
     #[test]
-    fn text_like_upstream() {
+    fn text_is_passed_on_whole() {
+        // The view cuts long text with "…" to fit before the buttons; the adapter doesn't trim.
         let mut i = info("p", PlaybackStatus::Playing);
         i.title = Some("A very long track title that keeps on going".into());
         i.artists = Some(vec!["One".into(), "Two".into()]);
         i.identity = Some(String::new());
         let r = row(&i);
-        assert_eq!(r.title.chars().count(), 33);
-        assert!(r.title.ends_with("..."));
+        assert_eq!(r.title, "A very long track title that keeps on going");
         assert_eq!(r.artist.as_deref(), Some("One, Two"));
         assert_eq!(r.app, None);
         i.artists = None;

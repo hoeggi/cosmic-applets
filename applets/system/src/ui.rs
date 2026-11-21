@@ -58,7 +58,7 @@ const TILE_RADIUS: f32 = 12.0;
 /// standard button colours when off) holding two click areas: the body toggles, the chevron (if
 /// any) opens a page, with a thin divider between them.
 /// One line, cut with "…" at the end: tiles keep one height whatever the text.
-fn one_line<'a>(
+pub fn one_line<'a>(
     t: cosmic::widget::Text<'a, cosmic::Theme>,
 ) -> cosmic::widget::Text<'a, cosmic::Theme> {
     use cosmic::iced::advanced::text::{Ellipsize, EllipsizeHeightLimit, Wrapping};
