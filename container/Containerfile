@@ -6,7 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       ca-certificates curl git build-essential pkg-config cmake \
-      libxkbcommon-dev libwayland-dev libssl-dev \
+      libxkbcommon-dev libwayland-dev libssl-dev libdbus-1-dev \
  && rm -rf /var/lib/apt/lists/*
 
 # System-wide, world-readable Rust so the container can run as any host UID.
