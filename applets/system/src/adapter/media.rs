@@ -122,9 +122,15 @@ pub fn row(info: &PlayerInfo) -> PlayerRow {
     }
 }
 
-/// Rows in the order given (upstream's: by bus name).
+/// Rows in the order given (upstream's: by bus name), for players that are playing or paused.
+/// Upstream's `find_active` gives a stopped player a score of 0, so the built-in applet never
+/// shows one; this keeps e.g. a browser without media (registered on MPRIS, but stopped) out.
 pub fn rows(infos: &[PlayerInfo]) -> Vec<PlayerRow> {
-    infos.iter().map(row).collect()
+    infos
+        .iter()
+        .filter(|info| !matches!(info.status, PlaybackStatus::Stopped))
+        .map(row)
+        .collect()
 }
 
 /// Every running player, in upstream's order.
@@ -196,6 +202,22 @@ mod tests {
     }
 
     #[test]
+    fn stopped_players_are_hidden() {
+        // A browser registers on MPRIS while it runs, stopped and without a title.
+        let mut browser = info(
+            "org.mpris.MediaPlayer2.chromium.instance1",
+            PlaybackStatus::Stopped,
+        );
+        browser.title = None;
+        let list = rows(&[
+            browser,
+            info("org.mpris.MediaPlayer2.vlc", PlaybackStatus::Playing),
+        ]);
+        let ids: Vec<_> = list.iter().map(|r| r.id.as_str()).collect();
+        assert_eq!(ids, ["org.mpris.MediaPlayer2.vlc"]);
+    }
+
+    #[test]
     fn one_row_per_player_in_upstreams_order() {
         let list = rows(&[
             info("org.mpris.MediaPlayer2.spotify", PlaybackStatus::Playing),
@@ -205,7 +227,7 @@ mod tests {
             ),
             info(
                 "org.mpris.MediaPlayer2.vlc.instance202",
-                PlaybackStatus::Stopped,
+                PlaybackStatus::Paused,
             ),
         ]);
         let ids: Vec<_> = list.iter().map(|r| r.id.as_str()).collect();
