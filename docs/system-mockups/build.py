@@ -46,9 +46,10 @@ def tiles(*ts):
 
 def power_row(active=None):
     btns = [("system-lock-screen", "Lock"), ("system-log-out", "Log out"), ("system-suspend", "Suspend"),
-            ("system-reboot", "Restart"), ("system-shutdown", "Shut down")]
+            ("system-reboot", "Restart"), ("system-shutdown", "Shut down"), ("emblem-system", "Settings")]
     return '<div class="pw">' + "".join(
-        f'<span class="pb{" on" if n == active else ""}" title="{n}">{i(ic)}</span>' for ic, n in btns) + "</div>"
+        f'<span class="pb{" on" if n == active else ""}" title="{n}">{i(ic)}</span>' for ic, n in btns) + "</div>" + \
+        '<div class="row ft applet"><div class="t"><div class="n">Applet settings…</div></div></div>'
 
 
 def battery_head(pct=78, text="3 h 40 min left", icon_name="battery-level-80", profile="Balanced", low=False):
@@ -84,7 +85,7 @@ main_page = (
     + slider("microphone-sensitivity-high", 80)
     + slider("display-brightness", 55)
     + tiles(
-        tile("network-wireless-signal-excellent", "Wi-Fi", "Hoeggi-5G"),
+        tile("network-wireless-signal-excellent", "Network", "Hoeggi-5G"),
         tile("bluetooth-active", "Bluetooth", "2 connected"),
         tile("audio-headphones", "Output", "WH-1000XM5"),
         tile("airplane-mode", "Airplane", "Off", on=False, more=False),
@@ -94,7 +95,7 @@ main_page = (
 )
 
 # ---------- detail pages, opened by the chevrons ----------
-b_audio = header("Sound", actions=("emblem-system",)) + DIV + slider("audio-volume-high", 64) + gh("Output") + "".join([
+b_audio = header("Sound") + DIV + slider("audio-volume-high", 64) + gh("Output") + "".join([
     choice("audio-headphones", "WH-1000XM5", "Bluetooth", True),
     choice("audio-speakers", "Speakers", "Built-in audio"),
     choice("computer", "DELL U2723QE", "HDMI / DisplayPort"),
@@ -117,7 +118,7 @@ LOCK = i("network-wireless-encrypted", "dim")
 def network_page(wired=None, wifi_sub="Connected · 866 Mb/s", wifi_pill="", vpn_on=False):
     """Wired only appears when the hardware has an Ethernet port. The pill marks the connection
     that carries traffic (NetworkManager's default route); the other one stays connected."""
-    body = header("Network", actions=("view-refresh", "emblem-system"))
+    body = header("Network", actions=("view-refresh",))
     if wired:
         sub, on, pl = wired
         body += DIV + sect("Wired") + choice("network-wired", "Ethernet", sub, on, pl)
@@ -138,7 +139,7 @@ b_network_both = network_page(
     wired=("Connected · 1 Gb/s", True, pill("In use")),
     wifi_sub="Connected · standby", vpn_on=True)
 
-b_bt = header("Bluetooth", actions=("view-refresh", "emblem-system")) + '<div class="row"><div class="t"><div class="n">Bluetooth</div></div><div class="r">' + toggle(True) + "</div></div>" + DIV + \
+b_bt = header("Bluetooth", actions=("view-refresh",)) + '<div class="row"><div class="t"><div class="n">Bluetooth</div></div><div class="r">' + toggle(True) + "</div></div>" + DIV + \
     gh("My devices") + "".join([
         choice("audio-headphones", "WH-1000XM5", "Connected · 90%", True, '<span class="link sm">Disconnect</span>'),
         choice("input-mouse", "MX Master 3S", "Connected · 45%", True, '<span class="link sm">Disconnect</span>'),
@@ -148,7 +149,7 @@ b_bt = header("Bluetooth", actions=("view-refresh", "emblem-system")) + '<div cl
         choice("bluetooth-active", "JBL Flip 6", None, right='<span class="link sm">Pair</span>'),
     ]) + DIV + '<div class="row ft"><div class="t"><div class="n">Bluetooth settings…</div></div></div>'
 
-b_power = header("Battery", actions=("emblem-system",)) + '<div class="pad">' + \
+b_power = header("Battery") + '<div class="pad">' + \
     '<div class="bh2"><span class="big2">78%</span><span class="c">3 h 40 min left · 11.2 W</span></div>' + \
     '<div class="meter lg"><b style="width:78%"></b></div></div>' + DIV + gh("Power mode") + "".join([
         choice("power-profile-power-saver", "Battery saver", "Lower performance, longer runtime"),
@@ -167,7 +168,7 @@ confirm = header("System", back=False) + DIV + \
 # ---------- states ----------
 both = battery_head(100, "Fully charged", "battery-level-100-charged") + DIV + \
     slider("audio-volume-high", 40) + slider("microphone-sensitivity-high", 80) + slider("display-brightness", 70) + tiles(
-        tile("network-wired", "Wi-Fi", "Ethernet in use · VPN"),
+        tile("network-wired", "Network", "Ethernet · VPN"),
         tile("bluetooth-active", "Bluetooth", "MX Keys"),
         tile("audio-speakers", "Output", "DELL U2723QE"),
         tile("airplane-mode", "Airplane", "Off", on=False, more=False),
@@ -176,7 +177,7 @@ both = battery_head(100, "Fully charged", "battery-level-100-charged") + DIV + \
 low = battery_head(9, "about 25 min left", "battery-level-10", "Battery saver", low=True) + \
     '<div class="banner bad">' + i("dialog-warning") + '<span>Battery low. Battery saver switched on automatically. Plug in soon.</span></div>' + DIV + \
     slider("audio-volume-high", 64) + slider("display-brightness", 30) + tiles(
-        tile("network-wireless-signal-good", "Wi-Fi", "Hoeggi-5G"),
+        tile("network-wireless-signal-good", "Network", "Hoeggi-5G"),
         tile("bluetooth-disabled", "Bluetooth", "Off", on=False),
         tile("audio-speakers", "Output", "Speakers"),
         tile("airplane-mode", "Airplane", "Off", on=False, more=False),
@@ -184,14 +185,14 @@ low = battery_head(9, "about 25 min left", "battery-level-10", "Battery saver", 
 
 airplane = battery_head(100, "Fully charged", "battery-level-100-charged") + DIV + \
     slider("audio-volume-muted", 0, '<span class="c pct">Muted</span>', muted=True) + slider("display-brightness", 55) + tiles(
-        tile("network-wireless-no-route", "Wi-Fi", "Off", on=False),
+        tile("network-wireless-no-route", "Network", "Off", on=False),
         tile("bluetooth-disabled", "Bluetooth", "Off", on=False),
         tile("audio-speakers", "Output", "Speakers"),
         tile("airplane-mode", "Airplane", "On", more=False),
     ) + DIV + power_row()
 
 desktop = slider("audio-volume-high", 40) + slider("microphone-sensitivity-muted", 0, '<span class="c pct">Muted</span>', muted=True) + tiles(
-    tile("network-wired", "Wired", "1 Gb/s"),
+    tile("network-wired", "Network", "Ethernet"),
     tile("bluetooth-active", "Bluetooth", "MX Keys"),
     tile("audio-speakers", "Output", "DELL U2723QE"),
     tile("preferences-vpn", "VPN", "Office VPN", on=False),
@@ -248,22 +249,22 @@ PANEL = '<section class="wide"><h2>Panel: one button for all five areas</h2><div
 
 SCREENS = "".join([
     heading("Main popup",
-            "Everything everyday fits on one page. Clicking a tile toggles it; every chevron (battery header and tiles) opens that area's detail page. Airplane mode has no page, so it has no chevron."),
+            "Everything everyday fits on one page. Every chevron (battery header and tiles) opens that area's detail page. Bluetooth, Output and Airplane toggle on click; the Network tile only opens its page, and Airplane has no page, so no chevron. The bottom row ends with a button for the COSMIC Settings app, and Applet settings… below it opens this applet's own settings."),
     screen("m1", "1. Main", "Battery on top, sliders in the middle, tiles for the switchable parts, power buttons at the bottom.", main_page),
     screen("m2", "2. Low battery", "Below 10% the header turns red, and a banner explains what changed automatically.", low),
     screen("m3", "3. Airplane mode, muted", "Off tiles stay in place and only lose their accent colour, so the layout never jumps.", airplane),
-    screen("m4", "4. Ethernet + Wi-Fi + VPN", "The tile still toggles the Wi-Fi radio, but its icon and subtitle show what carries traffic: Ethernet, plus the VPN.", both),
-    screen("m5", "5. Desktop without Wi-Fi or battery", "Sections without hardware are left out. Without a Wi-Fi card the network tile becomes Wired, and a VPN tile takes the free slot.", desktop),
+    screen("m4", "4. Ethernet + Wi-Fi + VPN", "The Network tile always shows the connection in use: Ethernet, plus the VPN. Wi-Fi on/off lives on the Network page.", both),
+    screen("m5", "5. Desktop without Wi-Fi or battery", "Sections without hardware are left out. Without a Wi-Fi card the Network tile shows Ethernet, and a VPN tile takes the free slot.", desktop),
     heading("Detail pages",
-            "One page per chevron, all built the same way: ← back to the main popup, the area's switch if it has one, then devices and options, then a link to COSMIC Settings."),
+            "One page per chevron, all built the same way: ← back to the main popup, the area's switch if it has one, then devices and options, then a link to the matching page of the COSMIC Settings app."),
     screen("d1", "6. Battery", "From the battery header. Power profiles from power-profiles-daemon, the charge limit if the hardware supports it, and peripheral batteries from UPower.", b_power),
     screen("d2", "7. Sound", "From the Output tile. Output and input devices, each with its own slider. Picking a device switches the default sink or source.", b_audio),
-    screen("d3", "8. Network", "From the network tile. Three sections: Wired (only with an Ethernet port), Wi-Fi with its radio switch and scan results, and VPN profiles with one switch each.", b_network),
+    screen("d3", "8. Network", "From the Network tile. Three sections: Wired (only with an Ethernet port), Wi-Fi with its radio switch and scan results, and VPN profiles with one switch each.", b_network),
     screen("d3b", "9. Network: Ethernet + Wi-Fi + VPN", "Both links stay connected. \u201cIn use\u201d marks the default route, so Wi-Fi takes over if the cable is pulled. A connected VPN says which link it runs over.", b_network_both),
     screen("d4", "10. Bluetooth", "From the Bluetooth tile. Paired devices with battery levels, then a live scan. Pairing opens a confirmation when a PIN is needed.", b_bt),
     heading("Other", "Shared pieces that aren't tied to one area."),
-    screen("o1", "11. Shut down confirmation", "Restart and Shut down ask first with a 60 s countdown. Lock and Suspend act immediately.", confirm),
-    screen("o2", "12. Settings", "From the gear on any detail page. Pick and reorder popup sections and pick the panel icons. Alerts: no network, low battery, muted output, a Bluetooth device with low battery, a VPN that dropped unexpectedly, and a muted microphone while an app is recording.", settings),
+    screen("o1", "11. Shut down confirmation", "Restart and Shut down ask first with a 60 s countdown. Lock and Suspend act immediately; the gear opens the COSMIC Settings app.", confirm),
+    screen("o2", "12. Settings", "From Applet settings… at the bottom of the main popup, or by right-clicking the panel icon. Pick and reorder popup sections and pick the panel icons. Alerts: no network, low battery, muted output, a Bluetooth device with low battery, a VPN that dropped unexpectedly, and a muted microphone while an app is recording.", settings),
 ])
 
 CSS = BASE_CSS + """
@@ -304,6 +305,8 @@ CSS = BASE_CSS + """
 .gh2{font-size:12px;font-weight:600;color:var(--mut);padding:6px 16px 0}
 .pill{font-size:11px;font-weight:600;padding:1px 8px;border-radius:9px;background:var(--acc);color:var(--onacc)}
 .bars{row-gap:20px}
+.pw{padding:6px 14px 4px}.pb{width:42px}
+.applet{min-height:36px;padding-top:2px}
 .btn.danger{background:var(--bad);color:var(--onacc)}
 """
 
