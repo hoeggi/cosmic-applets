@@ -48,7 +48,7 @@ def power_row(active=None):
     btns = [("system-lock-screen", "Lock"), ("system-log-out", "Log out"), ("system-suspend", "Suspend"),
             ("system-reboot", "Restart"), ("system-shutdown", "Shut down"), ("emblem-system", "Settings")]
     return '<div class="pw">' + "".join(
-        f'<span class="pb{" on" if n == active else ""}" title="{n}">{i(ic)}</span>' for ic, n in btns) + "</div>" + \
+        f'<span class="pb{" on" if n == active else ""}" title="{n}">{i(ic)}</span>' for ic, n in btns) + "</div>" + DIV + \
         '<div class="row ft applet"><div class="t"><div class="n">Applet settings…</div></div></div>'
 
 
