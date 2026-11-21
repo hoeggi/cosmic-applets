@@ -2,116 +2,108 @@
 
 Branch `system` (local, not pushed), worktree `.worktrees/system`, crate `applets/system`
 (`cosmic-applet-system`, APP_ID `at.hoeggi.CosmicAppletSystem`), **GPL-3.0-only**.
-Design: `docs/system-mockups`. Licensing rules: `docs/LICENSING.md`.
+Design: `docs/system-mockups`. Licensing rules: `docs/LICENSING.md`. Upstream ports and how to
+update them: `applets/system/UPSTREAM.md`.
 
-## Milestones
+## Round 1: first build (milestones)
 
-| # | Milestone | State | Commit |
-|---|---|---|---|
-| 1 | Scaffold: crate, license, packaging, panel button, page navigation, config | done | d27c5fb |
-| 2 | Power buttons, confirmation with countdown, settings entry points | done | 6c29c50 |
-| 3 | Audio: sliders, Output tile, Sound page, scroll on the panel icon | done | 2ce2cee |
-| 4 | Battery header and page, power profiles, charge limit, peripherals, brightness | done | 2379add |
-| 5 | Bluetooth tile and page: power, paired devices, scan, pair, connect | done | eb02e54 |
-| 6 | Network tile and page (wired, Wi-Fi, VPN, In use), airplane mode, VPN tile on desktops | done | 8785a2c |
-| 7 | Panel icons, alerts, settings page | done | e857c2e |
+| # | Milestone | Commit |
+|---|---|---|
+| 1 | Scaffold: crate, license, packaging, panel button, page navigation, config | d27c5fb |
+| 2 | Power buttons, confirmation with countdown, settings entry points | 6c29c50 |
+| 3 | Audio: sliders, Output tile, Sound page, scroll on the panel icon | 2ce2cee |
+| 4 | Battery header and page, power profiles, charge limit, peripherals, brightness | 2379add |
+| 5 | Bluetooth tile and page | eb02e54 |
+| 6 | Network tile and page, airplane mode | 8785a2c |
+| 7 | Panel icons, alerts, settings page | e857c2e |
+| | Charge limit through system76-power | 5b0a323 |
 
-Full gate (`fmt --check`, workspace clippy `-D warnings`, workspace tests) passed on
-2026-11-21 at e857c2e: 76 tests, 3 ignored, across all applets.
+## Round 2: upstream ports (base: cosmic-applets `ecb6b61`, the installed version)
 
-## Next steps
+| Commit | What |
+|---|---|
+| 00d99c3 | **Workspace:** libcosmic 5a8bd94 → dd108aa (as in ecb6b61's lockfile); commands and transmission use `cosmic_launch::process::spawn`. Touches shared code: merge or cherry-pick to `main` only with the user's approval. |
+| 7b64fea | Network from upstream's NetworkManager model (`nmrs`); every Ethernet device listed |
+| 384e461 | Build: `libdbus-1-dev` in the builder image and CI (needed by `bluer`). Touches shared files, like 00d99c3. |
+| 23bf1b6 | Bluetooth from upstream's BlueZ backend (`bluer`), with upstream's PIN confirmation |
+| aa1a991 | Battery, power profiles, charge limit and brightness from upstream; upstream's icons; zbus 6 |
+| 0b14bc7 | Power actions from upstream's helpers (`cosmic-login1-zbus`) |
+| e9307aa | Audio through upstream's model (route-based names, sorting, upstream's client calls) |
+| 9667b89 | Tiles as one rounded piece |
+| 5afbbd3 | Media controls for every MPRIS player (new section "Media controls") |
 
-- Try it in the panel (`make deb` then install, or `make run APPLET=system`) and check every
-  page; nothing has been seen on screen yet.
-- Decide whether the Microphone panel icon is worth a PipeWire query for recording streams.
+### What is upstream and what is ours
 
-## How to run and check
+Ported from upstream (`src/upstream/`, behind adapters in `src/adapter/`): network state and
+commands, the whole Bluetooth backend, battery backend (profiles, charge limit), battery and
+brightness icons and brightness logic, the battery and brightness subscriptions, power actions,
+the audio model, volume icons and client calls, the MPRIS subscription.
 
-From the worktree:
+Still ours (upstream has no equivalent): the UI and design, the panel icon picker and alerts,
+the applet settings, the shutdown confirmation page, connected devices' batteries and the
+charging text on the Battery page, the device icons in the Sound page's lists, and listing
+every media player (a marked addition to upstream's subscription).
 
-    make run APPLET=system        # standalone window (popup pages need the panel)
+## Gates
 
-Quick check (per commit; the full `make check test` gate runs before merging):
+- Quick check (fmt, clippy `-p cosmic-applet-system`, its tests) passed before every commit;
+  29 tests at 5afbbd3.
+- Full gate after the libcosmic update (00d99c3): fmt, workspace clippy `-D warnings`, all
+  tests (77 passed, 3 ignored) and release builds of every applet passed.
+- Final full gate at 5afbbd3 (2026-11-21): fmt, workspace clippy `-D warnings`, all tests
+  (84 passed, 3 ignored) and release builds of every applet passed.
 
-    podman run --rm --userns=keep-id -v $PWD:/src -w /src \
-      -v /home/hoeggi/repos/cosmic-applets/.cache:/src/.cache \
-      -e HOME=/tmp -e USER=$USER -e CARGO_HOME=/src/.cache/cargo cosmic-applet-builder \
-      sh -ec "cargo fmt --all --check && cargo clippy --release -p cosmic-applet-system --all-targets -- -D warnings && cargo test --release -p cosmic-applet-system"
+## Try in the panel
 
-## Backends and licenses
-
-- Power: login1, com.system76.CosmicSession (org.gnome.SessionManager under pop:GNOME), with
-  zbus 5 proxies in `src/power.rs`, adapted from cosmic-applet-power (GPL).
-- Audio: cosmic-settings-daemon's varlink socket through `cosmic-settings-audio-client`
-  (MPL-2.0), as upstream's audio applet does.
-- Charge limit: system76-power's charge thresholds, as cosmic-applet-battery does (on:
-  (70, 80), off: (90, 100); shown as limited when end > start and end < 100). UPower's
-  charge-threshold API is only used when system76-power isn't on the bus.
-- Battery, Bluetooth, network, brightness: zbus 5 bindings from `dbus-settings-bindings`
-  (MPL-2.0 / MIT), the same revision libcosmic already pulls in.
-- Verified licenses are in `docs/LICENSING.md`. The cosmic-settings subscription crates are
-  MPL-2.0 but need a newer libcosmic than this workspace pins, so they aren't used.
+Install from the worktree with `make install APPLET=system`, then `make reload-panel`.
+Things to check:
+- Network page with the USB Ethernet adapter: both wired ports listed, the USB one "Connected"
+  and "In use", the built-in one "Cable unplugged"; Network tile shows "Ethernet".
+- Tiles: one rounded piece each, divider before the chevron, in light and dark themes.
+- Battery page: the "Limit charge to 80%" switch is visible (system76-power answers here).
+  Switching it really changes the charge thresholds.
+- Volumes: sliders show the real output/input levels; device names like the built-in applet.
+- Media controls: one row per player (e.g. Spotify and two VLC windows), buttons per player.
+- Brightness slider and its icon; power modes; Bluetooth page and pairing.
 
 ## Decisions
 
 Decided by the user (2026-11-21):
-- Detail pages end with a link to the matching COSMIC Settings page ("Sound settings…",
-  "Network settings…", "Bluetooth settings…", "Power settings…"). Their headers have no gear;
-  refresh icons stay.
-- The main popup's button row has a sixth button after Shut down that opens COSMIC Settings.
-- The applet's own settings page opens from an "Applet settings…" row at the very bottom of
-  the main popup, and from a right click on the panel icon.
-- The network tile is neutral: named "Network", with the icon and subtitle of the connection
-  in use (SSID, "Ethernet", plus " · VPN"; "Disconnected" or "Off" otherwise). Clicking it only
-  opens the Network page; Wi-Fi on/off lives on that page. On desktops the VPN tile in the free
-  slot keeps its toggle and chevron.
+- Detail pages end with a link to the matching COSMIC Settings page; no gear in their headers.
+- The main popup's button row has a sixth button that opens COSMIC Settings.
+- The applet's own settings open from "Applet settings…" at the bottom of the main popup, below
+  a divider, and from a right click on the panel icon.
+- The Network tile is neutral ("Network", the connection in use; it only opens the page).
+- Output tile body toggles mute; Bluetooth tile body switches Bluetooth; Log out asks first;
+  section order with up/down arrows.
+- Media controls: every player listed, all three buttons always shown (disabled when not
+  supported), no media controls in the panel.
 
-Proposed here and confirmed by the user (2026-11-21):
-- The Output tile's body toggles mute; its chevron opens the Sound page. Scrolling on the
-  panel icon changes the volume in 5 % steps.
-- Log out asks first, like Restart and Shut down. Lock and Suspend act at once.
-- The Bluetooth tile's body switches Bluetooth on and off. The Bluetooth page scans while it is
-  open and stops when it is left or the popup closes.
-- Airplane mode works in software (NetworkManager + BlueZ, no rfkill); a hardware airplane key
-  isn't reflected separately.
-- Section order in the settings uses up/down arrows; no drag handles.
-- No Bluetooth pairing agent of our own: PIN/passkey devices pair through COSMIC Settings.
+**Changed by the port, for the user to confirm** (upstream's behaviour now, unlike before):
+- Airplane mode is NetworkManager's (`nmrs::set_airplane_mode`): it switches Wi-Fi, mobile
+  broadband and Bluetooth in one call, using rfkill as upstream does (previously: software only,
+  no rfkill). It shows as on when every present radio is off.
+- Bluetooth: upstream's backend registers its own pairing agent (not the default one). Numeric
+  PIN confirmations appear on the Bluetooth page with Cancel / Confirm, as in the built-in
+  applet; other PIN or passkey requests are ignored, as upstream does (previously: no agent).
 
 Chosen here, not discussed:
 - Closing the popup cancels a pending countdown.
+- "In use" for wired: nmrs doesn't report the default route, so wired counts as in use whenever
+  an Ethernet device is connected (NetworkManager prefers wired by route metric by default).
 
 ## Known gaps
 
 - Microphone panel icon and the "mic muted while an app records" alert are not built: the
-  audio service reports playback streams but not recording streams, so the applet can't tell
-  when an app records. The config keeps the `microphone` flag; the settings page doesn't offer
-  it.
-- The other five alerts work: no network, low battery (< 10 % discharging), muted output, a
-  connected Bluetooth device below 20 %, and a VPN that went down without being switched off
-  in the applet.
-
-- Bluetooth pairing registers no agent of its own (by decision). Devices that need a PIN or a
-  passkey confirmation only pair if another agent runs (e.g. COSMIC Settings' Bluetooth page);
-  "Just works" devices pair directly.
-
-- Wi-Fi: joining a new secured network asks for a WPA/WPA2 personal password inline.
-  Enterprise (802.1X) and WEP networks aren't handled; use Network settings… for those.
-- Airplane mode switches Wi-Fi and mobile broadband off through NetworkManager and Bluetooth
-  through BlueZ. It's shown as on while Wi-Fi and Bluetooth are both off. It doesn't use rfkill
-  directly, so a hardware airplane key isn't reflected separately.
-- Power profiles have no icons: neither the COSMIC nor the Pop icon theme has
-  power-profile-* icons, and libcosmic doesn't fall back to Adwaita.
-
-## Lockfile
-
-The audio client needs tokio 1.54 and zcheapstr ≥ 1.2, so `Cargo.lock` moves tokio
-1.53.2 → 1.54.1 and zcheapstr 1.1.0 → 1.4.0 for the whole workspace (semver-compatible).
-
-## Not tested
-
-Nothing has been seen in the real panel: everything is built and unit-tested in the container
-only. Run it with `make run APPLET=system`, or install the `.deb`, to check the UI.
+  audio service reports playback streams but not recording streams. The other five alerts work.
+- nmrs reports no Wi-Fi bitrate, so the connected network says "Connected" without a speed.
+- Wi-Fi: joining a new secured network asks for a WPA/WPA2 personal password inline;
+  enterprise (802.1X) networks need Network settings….
+- Power modes have no icons (neither the COSMIC nor the Pop theme has power-profile icons).
+- The shared builder image now includes `libdbus-1-dev`. A `make` in another checkout whose
+  Containerfile lacks it rebuilds the image without it (the image is shared by hash label), and
+  the next system build here rebuilds it again, until 384e461 reaches `main`.
 
 ## Notes for common/
 
-Nothing so far.
+Nothing: `common/` is unchanged on this branch.
