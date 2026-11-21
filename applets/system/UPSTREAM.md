@@ -16,10 +16,18 @@ workspace's libcosmic (`dd108aa`) matches that commit's `Cargo.lock`.
 
 | Upstream (at `ecb6b61`) | Here | How |
 |---|---|---|
+| `cosmic-applet-battery/src/backend/mod.rs`, `power_daemon.rs`, `power_profiles.rs` | `src/upstream/battery/` (same names) | Verbatim: power profiles (system76-power, then power-profiles-daemon) and the system76-power charge limit. |
+| `cosmic-applet-battery/src/app.rs` | `src/upstream/battery/app.rs` | `update_battery` (icon), `screen_brightness_percent`, `update_display` (brightness icon) and the `SetScreenBrightness` snapping, as free functions. |
 | `cosmic-applet-bluetooth/src/bluetooth.rs` | `src/upstream/bluetooth.rs` | Whole file, verbatim: the `bluer` subscription, requests and pairing agent. |
 | `cosmic-applet-network/src/app.rs` | `src/upstream/network.rs` | Backend part only: the state types, `snapshot_to_applet`, `network_type`, `wifi_security`, `wifi_icon`, `HwAddress`, `active_conn_hw_address`. The applet struct, UI, task wrappers and secret agent are left out. |
 
 Adapters:
+- `src/adapter/battery.rs`: upstream's battery handlers (UPower display device through
+  `cosmic-settings-upower-subscription`, power profiles, charge limit, brightness through
+  `cosmic-settings-daemon-subscription` with upstream's 200 ms send loop while dragging), and
+  upstream's icons (`cosmic-applet-battery-…`, installed with the cosmic-applets package). Ours
+  in it: the batteries of connected devices and the charging state text, which upstream's
+  battery applet doesn't have.
 - `src/adapter/bluetooth.rs`: keeps upstream's state, request sender and PIN confirmation, does
   upstream's optimistic status changes on requests, and splits devices into known and nearby
   like upstream's popup. Scanning on the Bluetooth page uses upstream's `set_discovery` and
@@ -39,6 +47,14 @@ Adapters:
 4. Fix the adapters until the quick check passes; update the base commit in this file.
 
 ## `system-applet:` changes
+
+`src/upstream/battery/mod.rs`:
+- `#![allow(dead_code, clippy::collapsible_if)]`: our workspace denies warnings.
+- `pub mod app;` for the functions extracted from upstream's `app.rs`.
+
+`src/upstream/battery/app.rs`:
+- Upstream's methods and handler code as free functions taking the fields they read; bodies
+  unchanged.
 
 `src/upstream/bluetooth.rs`:
 - `#![allow(dead_code, unreachable_patterns, clippy::collapsible_if, clippy::while_let_loop)]`:

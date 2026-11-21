@@ -5,7 +5,7 @@
 //! Lock, log out, suspend, restart and shut down. Adapted from cosmic-applet-power, with the
 //! login1 proxies written for the zbus version this workspace uses.
 
-use zbus::{Connection, proxy, zvariant::OwnedObjectPath};
+use zbus::{Connection, OwnedObjectPath, proxy};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PowerAction {
@@ -121,15 +121,12 @@ async fn lock() -> zbus::Result<()> {
     let manager = ManagerProxy::new(&connection).await?;
     let uid = rustix::process::getuid().as_raw();
     let user = UserProxy::builder(&connection)
-        .path(manager.get_user(uid).await?)?
+        .path(manager.get_user(uid).await?)
         .build()
         .await?;
     let mut locked = false;
     for (_, path) in user.sessions().await? {
-        let Ok(builder) = SessionProxy::builder(&connection).path(path) else {
-            continue;
-        };
-        let Ok(session) = builder.build().await else {
+        let Ok(session) = SessionProxy::builder(&connection).path(path).build().await else {
             continue;
         };
         if session.class().await.is_ok_and(|c| c == "user")

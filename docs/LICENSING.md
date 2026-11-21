@@ -57,7 +57,8 @@ The MPL-2.0 text is in [`LICENSE`](../LICENSE). A GPL applet ships the GPL-3.0 t
 | `dbus-settings-bindings`: `upower_dbus` | MIT (verified) | yes |
 | `cosmic-settings-audio-client` / `-audio-core` (from `cosmic-settings-daemon`) | MPL-2.0 (verified) | yes |
 | `cosmic-settings-daemon` itself, its `audio-server` and `varlink-server` | GPL-3.0 (verified) | no; not a dependency, the applet only talks to the running daemon |
-| `cosmic-settings` subscriptions (`-upower-subscription`, `-bluetooth-subscription`, …) | MPL-2.0 (verified) | yes, but they need a newer libcosmic than this workspace pins, so they aren't used |
+| `cosmic-settings-upower-subscription` (battery, as upstream's battery applet) | MPL-2.0 (verified: `license` field and SPDX headers) | yes |
+| `cosmic-settings-daemon-subscription` (display brightness, as upstream's battery applet) | MPL-2.0 by its SPDX headers; no `license` field, and the cosmic-settings repository as a whole is GPL-3.0 | only in the GPL applet, to be safe |
 | `nmrs` 3.5 (NetworkManager, as upstream's network applet) | MIT (verified) | yes |
 | `secure-string` (passwords in upstream's network model) | Unlicense (verified) | yes |
 | `indexmap` | Apache-2.0 OR MIT (verified) | yes |

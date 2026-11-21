@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::adapter::battery as battery_backend;
 use crate::adapter::bluetooth as bt;
 use crate::adapter::network as net;
 use crate::audio;
-use crate::battery as battery_backend;
 use crate::config::{Config, Section};
 use crate::fl;
 use crate::panel;
@@ -61,10 +61,9 @@ pub struct AppModel {
     audio: audio::Model,
     sink_volume: audio::Debounced,
     source_volume: audio::Debounced,
+    /// Upstream's battery, profile and brightness state; `battery` is our view of it.
+    battery_model: battery_backend::Model,
     battery: battery_backend::Battery,
-    /// Display brightness in percent; `None` without a backlight.
-    brightness: Option<u32>,
-    brightness_debounce: battery_backend::Debounced,
     /// Upstream's Bluetooth state and request sender; `bluetooth` is our view of it.
     bluetooth_model: bt::Model,
     bluetooth: bt::Bluetooth,
@@ -100,10 +99,11 @@ pub enum Message {
     ToggleSinkMute,
     ToggleSourceMute,
     SetDefault(u32),
-    BatteryChanged(battery_backend::Battery),
-    BrightnessChanged(Option<u32>),
+    BatteryEvent(battery_backend::Event),
     Brightness(u32),
-    SetProfile(String),
+    BrightnessDebounced,
+    BrightnessReleased,
+    SetProfile(crate::upstream::battery::Power),
     SetChargeLimit(bool),
     BluetoothUpdate(crate::upstream::bluetooth::BluerEvent),
     Bluetooth(bt::Command),
@@ -146,7 +146,16 @@ impl cosmic::Application for AppModel {
             config_ctx,
             ..Default::default()
         };
-        (app, Task::none())
+        // As upstream's battery applet: the session bus (for brightness) and the charge limit.
+        let tasks = Task::batch([
+            Task::perform(battery_backend::connect_session(), |event| {
+                cosmic::Action::App(event.map_or(Message::Done, Message::BatteryEvent))
+            }),
+            Task::perform(battery_backend::read_charge_limit(), |event| {
+                cosmic::Action::App(Message::BatteryEvent(event))
+            }),
+        ]);
+        (app, tasks)
     }
 
     fn on_close_requested(&self, id: Id) -> Option<Message> {
@@ -175,8 +184,8 @@ impl cosmic::Application for AppModel {
         let mut subs = vec![
             cfg::watch::<Config>(self.core(), Self::APP_ID).map(Message::UpdateConfig),
             audio::subscription().map(Message::Audio),
-            battery_backend::subscription().map(Message::BatteryChanged),
-            battery_backend::brightness_subscription().map(Message::BrightnessChanged),
+            battery_backend::subscription(self.battery_model.session.as_ref())
+                .map(Message::BatteryEvent),
             bt::subscription().map(Message::BluetoothUpdate),
             net::subscription().map(Message::NetworkUpdate),
         ];
@@ -272,25 +281,18 @@ impl cosmic::Application for AppModel {
                 }
             }
             Message::SetDefault(id) => return audio_task(audio::Command::SetDefault(id)),
-            Message::BatteryChanged(battery) => self.battery = battery,
-            Message::BrightnessChanged(brightness) => {
-                // Ignore echoes while a slider change is still being sent.
-                if !self.brightness_debounce.is_pending() {
-                    self.brightness = brightness;
-                }
+            Message::BatteryEvent(event) => {
+                self.battery_model.event(event);
+                self.battery = self.battery_model.view();
             }
             Message::Brightness(percent) => return self.set_brightness(percent),
-            Message::SetProfile(profile) => {
-                self.battery.profile = Some(profile.clone());
-                return Task::perform(battery_backend::set_profile(profile), |()| {
-                    cosmic::Action::App(Message::Done)
-                });
-            }
+            Message::BrightnessDebounced => return self.brightness_debounced(),
+            Message::BrightnessReleased => self.battery_model.release_brightness(),
+            Message::SetProfile(profile) => self.battery_model.set_profile(profile),
             Message::SetChargeLimit(enabled) => {
-                if let Some((_, end)) = self.battery.charge_limit {
-                    self.battery.charge_limit = Some((enabled, end));
-                }
-                return Task::perform(battery_backend::set_charge_limit(enabled), |()| {
+                self.battery_model.set_charge_limit(enabled);
+                self.battery = self.battery_model.view();
+                return Task::perform(battery_backend::write_charge_limit(enabled), |()| {
                     cosmic::Action::App(Message::Done)
                 });
             }
@@ -401,7 +403,7 @@ impl AppModel {
                 .map(|s| (audio::volume_icon(s.volume, s.mute), s.mute)),
             battery: battery
                 .present
-                .then(|| (battery.icon(), battery.percentage, battery.is_low())),
+                .then(|| (battery.icon.clone(), battery.percentage, battery.is_low())),
         }
     }
 

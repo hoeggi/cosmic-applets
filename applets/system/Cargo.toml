@@ -38,8 +38,12 @@ rustix = { version = "1.1", features = ["process"] }
 serde.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-# The zbus libcosmic already uses; D-Bus to logind, UPower, BlueZ, NetworkManager.
-zbus = { version = "5.14", default-features = false, features = ["tokio"] }
+# The zbus libcosmic and upstream's applets use (6.x); D-Bus to logind, UPower, system76-power.
+zbus = { version = "6.2", default-features = false, features = ["tokio"] }
+# Upstream's battery applet gets the battery and the display brightness from these, at the
+# revision cosmic-applets ecb6b61 pins.
+cosmic-settings-upower-subscription = { git = "https://github.com/pop-os/cosmic-settings", rev = "5f43cfc867163f3d9e8d83d79efa959e29d53418" }
+cosmic-settings-daemon-subscription = { git = "https://github.com/pop-os/cosmic-settings", rev = "5f43cfc867163f3d9e8d83d79efa959e29d53418" }
 
 # `cargo deb -p cosmic-applet-system` (see `make deb`)
 [package.metadata.deb]

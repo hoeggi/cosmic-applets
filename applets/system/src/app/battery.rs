@@ -3,33 +3,45 @@
 //! Battery header, brightness slider and the Battery page.
 
 use super::{AppModel, Message, Page};
-use crate::battery::{self, Charge, LOW_PERCENT};
+use crate::adapter::battery::{self, Charge, LIMIT_PERCENT, LOW_PERCENT, PROFILES};
 use crate::fl;
 use crate::ui;
+use crate::upstream::battery::Power;
 use cosmic::applet::padded_control;
 use cosmic::iced::{Alignment, Length};
 use cosmic::prelude::*;
 use cosmic::widget::{self, icon, text};
 use cosmic_applet_common::widgets::{section_divider, status_color};
+use std::time::Duration;
 
 impl AppModel {
+    /// Upstream's `SetScreenBrightness`: shown at once, then sent every 200 ms while dragging.
     pub(super) fn set_brightness(&mut self, percent: u32) -> Task<cosmic::Action<Message>> {
-        self.brightness = Some(percent);
-        match self.brightness_debounce.set(percent) {
-            Some(send) => Task::perform(send, |()| cosmic::Action::App(Message::Done)),
-            None => Task::none(),
+        if self.battery_model.drag_brightness(percent) {
+            return self.brightness_debounced();
         }
+        Task::none()
+    }
+
+    /// Upstream's `SetScreenBrightnessDebounced` loop; it ends when the slider is released.
+    pub(super) fn brightness_debounced(&mut self) -> Task<cosmic::Action<Message>> {
+        if !self.battery_model.send_brightness_while_dragging() {
+            return Task::none();
+        }
+        Task::perform(tokio::time::sleep(Duration::from_millis(200)), |()| {
+            cosmic::Action::App(Message::BrightnessDebounced)
+        })
     }
 
     pub(super) fn brightness_slider(&self) -> Option<Element<'_, Message>> {
-        let percent = self.brightness?;
+        let percent = self.battery_model.brightness_percent()?;
         Some(ui::slider_row(
-            "display-brightness-symbolic",
+            self.battery_model.brightness_icon(),
             None,
             percent,
             format!("{percent}%"),
             Message::Brightness,
-            None,
+            Some(Message::BrightnessReleased),
         ))
     }
 
@@ -56,7 +68,7 @@ impl AppModel {
             .width(Length::Fill);
         let mut row = widget::Row::new()
             .push(
-                icon::from_name(battery.icon())
+                icon::from_name(battery.icon.clone())
                     .size(24)
                     .symbolic(true)
                     .icon(),
@@ -64,7 +76,7 @@ impl AppModel {
             .push(info)
             .spacing(12)
             .align_y(Alignment::Center);
-        if let Some(profile) = &battery.profile {
+        if let Some(profile) = battery.profile {
             row = row.push(text::caption(profile_name(profile)));
         }
         row = row.push(
@@ -92,10 +104,7 @@ impl AppModel {
             ))
             .push(section_divider());
         if battery.present {
-            let mut details = charge_text(battery);
-            if let Some(watts) = battery.watts {
-                details.push_str(&format!(" · {watts:.1} W"));
-            }
+            let details = charge_text(battery);
             column = column.push(
                 padded_control(
                     widget::Column::new()
@@ -112,23 +121,26 @@ impl AppModel {
                 .padding([4, 16]),
             );
         }
-        if !battery.profiles.is_empty() {
+        // Upstream's three power profiles, once a backend (system76-power or
+        // power-profiles-daemon) answered.
+        if let Some(current) = battery.profile {
             column = column
                 .push(section_divider())
                 .push(ui::group_label(fl!("power-mode")));
-            for profile in &battery.profiles {
-                let selected = battery.profile.as_ref() == Some(profile);
+            for profile in PROFILES {
+                let selected = current == profile;
                 column = column.push(ui::choice_row(
                     "",
                     profile_name(profile),
                     Some(profile_description(profile)),
                     selected,
                     Vec::new(),
-                    (!selected).then(|| Message::SetProfile(profile.clone())),
+                    (!selected).then_some(Message::SetProfile(profile)),
                 ));
             }
         }
-        if let Some((enabled, end)) = battery.charge_limit {
+        if let Some(enabled) = battery.charge_limit {
+            let end = LIMIT_PERCENT;
             column = column.push(section_divider()).push(
                 padded_control(
                     widget::Row::new()
@@ -198,19 +210,18 @@ fn charge_text(battery: &battery::Battery) -> String {
     }
 }
 
-fn profile_name(profile: &str) -> String {
+fn profile_name(profile: Power) -> String {
     match profile {
-        "power-saver" => fl!("profile-power-saver"),
-        "balanced" => fl!("profile-balanced"),
-        "performance" => fl!("profile-performance"),
-        other => other.to_owned(),
+        Power::Battery => fl!("profile-power-saver"),
+        Power::Balanced => fl!("profile-balanced"),
+        Power::Performance => fl!("profile-performance"),
     }
 }
 
-fn profile_description(profile: &str) -> String {
+fn profile_description(profile: Power) -> String {
     match profile {
-        "power-saver" => fl!("profile-power-saver-description"),
-        "performance" => fl!("profile-performance-description"),
-        _ => fl!("profile-balanced-description"),
+        Power::Battery => fl!("profile-power-saver-description"),
+        Power::Balanced => fl!("profile-balanced-description"),
+        Power::Performance => fl!("profile-performance-description"),
     }
 }
