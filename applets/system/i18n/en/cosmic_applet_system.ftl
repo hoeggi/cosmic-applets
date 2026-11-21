@@ -35,3 +35,9 @@ restart-now = Restart now
 confirm-log-out = Log out?
 confirm-log-out-body = You are logged out automatically in { $seconds } seconds.
 log-out-now = Log out now
+
+# Sound
+input = Input
+muted = Muted
+no-output = No output
+audio-unavailable = The audio service (cosmic-settings-daemon) isn't running.

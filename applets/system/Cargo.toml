@@ -15,6 +15,10 @@ xdgen.workspace = true
 
 [dependencies]
 cosmic-applet-common.workspace = true
+# Talks to cosmic-settings-daemon's audio service (MPL-2.0, same revision as upstream's applets).
+cosmic-settings-audio-client = { git = "https://github.com/pop-os/cosmic-settings-daemon", rev = "2df041e6e90757782a7884729ae3723e86cee122", features = ["codec"] }
+futures-channel = "0.3"
+futures-util = "0.3"
 i18n-embed.workspace = true
 i18n-embed-fl.workspace = true
 libcosmic.workspace = true

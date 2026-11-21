@@ -1,17 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::audio;
 use crate::config::{Config, Section};
 use crate::fl;
 use crate::power::PowerAction;
 use crate::ui;
 use cosmic::applet::padded_control;
 use cosmic::cosmic_config;
+use cosmic::iced::mouse::ScrollDelta;
 use cosmic::iced::{Alignment, Length, Subscription, window::Id};
 use cosmic::prelude::*;
 use cosmic::widget::{self, button, icon, text};
 use cosmic_applet_common::widgets::section_divider;
 use cosmic_applet_common::{config as cfg, popup};
 use std::time::{Duration, Instant};
+
+mod sound;
 
 pub const APP_ID: &str = "at.hoeggi.CosmicAppletSystem";
 
@@ -46,6 +50,9 @@ pub struct AppModel {
     confirm_deadline: Option<Instant>,
     /// Redraw tick for the countdown.
     now: Option<Instant>,
+    audio: audio::Model,
+    sink_volume: audio::Debounced,
+    source_volume: audio::Debounced,
 }
 
 #[derive(Debug, Clone)]
@@ -63,6 +70,16 @@ pub enum Message {
     CancelPower,
     Tick(Instant),
     PowerDone(Result<(), String>),
+    Audio(audio::Update),
+    SinkVolume(u32),
+    SourceVolume(u32),
+    /// Scroll on the panel icon: positive is up.
+    ScrollVolume(f32),
+    ToggleSinkMute,
+    ToggleSourceMute,
+    SetDefault(u32),
+    /// A background task finished; nothing to do.
+    Done,
 }
 
 impl cosmic::Application for AppModel {
@@ -107,7 +124,7 @@ impl cosmic::Application for AppModel {
         let content = match self.page {
             Page::Main => self.view_main(),
             Page::Battery => self.view_placeholder(fl!("battery"), fl!("power-settings"), "power"),
-            Page::Sound => self.view_placeholder(fl!("sound"), fl!("sound-settings"), "sound"),
+            Page::Sound => self.view_sound(),
             Page::Network => {
                 self.view_placeholder(fl!("network"), fl!("network-settings"), "network")
             }
@@ -124,8 +141,10 @@ impl cosmic::Application for AppModel {
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {
-        let mut subs =
-            vec![cfg::watch::<Config>(self.core(), Self::APP_ID).map(Message::UpdateConfig)];
+        let mut subs = vec![
+            cfg::watch::<Config>(self.core(), Self::APP_ID).map(Message::UpdateConfig),
+            audio::subscription().map(Message::Audio),
+        ];
         if self.confirm_deadline.is_some() {
             subs.push(cosmic::iced::time::every(Duration::from_secs(1)).map(Message::Tick));
         }
@@ -197,6 +216,28 @@ impl cosmic::Application for AppModel {
                     tracing::error!(%err, "power action failed");
                 }
             }
+            Message::Audio(update) => self.audio.update(update),
+            Message::SinkVolume(volume) => return self.set_sink_volume(volume),
+            Message::SourceVolume(volume) => return self.set_source_volume(volume),
+            Message::ScrollVolume(delta) => {
+                if let Some(sink) = self.audio.sink() {
+                    let step = if delta > 0.0 { 5 } else { -5 };
+                    let volume = (sink.volume as i32 + step).clamp(0, 100) as u32;
+                    return self.set_sink_volume(volume);
+                }
+            }
+            Message::ToggleSinkMute => {
+                if let Some(sink) = self.audio.sink() {
+                    return audio_task(audio::Command::SetMute(sink.id, !sink.mute));
+                }
+            }
+            Message::ToggleSourceMute => {
+                if let Some(source) = self.audio.source() {
+                    return audio_task(audio::Command::SetMute(source.id, !source.mute));
+                }
+            }
+            Message::SetDefault(id) => return audio_task(audio::Command::SetDefault(id)),
+            Message::Done => {}
         }
         Task::none()
     }
@@ -270,7 +311,16 @@ impl AppModel {
             .on_press_down(Message::TogglePopup);
         self.core
             .applet
-            .autosize_window(widget::mouse_area(button).on_right_press(Message::OpenAppletSettings))
+            .autosize_window(
+                widget::mouse_area(button)
+                    .on_right_press(Message::OpenAppletSettings)
+                    .on_scroll(|delta| {
+                        let y = match delta {
+                            ScrollDelta::Lines { y, .. } | ScrollDelta::Pixels { y, .. } => y,
+                        };
+                        Message::ScrollVolume(y)
+                    }),
+            )
             .into()
     }
 
@@ -296,14 +346,17 @@ impl AppModel {
                     None,
                     Some(Message::Open(Page::Bluetooth)),
                 )),
-                Section::Volume => tiles.push(ui::tile(
-                    "audio-speakers-symbolic",
-                    fl!("output"),
-                    String::new(),
-                    false,
-                    None,
-                    Some(Message::Open(Page::Sound)),
-                )),
+                Section::Volume => {
+                    if let Some(slider) = self.sink_slider() {
+                        column = column.push(slider);
+                        tiles.push(self.output_tile());
+                    }
+                }
+                Section::Microphone => {
+                    if let Some(slider) = self.source_slider() {
+                        column = column.push(slider);
+                    }
+                }
                 Section::Battery => {
                     column = column.push(
                         cosmic::applet::menu_button(
@@ -315,7 +368,7 @@ impl AppModel {
                     );
                 }
                 Section::PowerButtons => power_buttons = true,
-                Section::Microphone | Section::Brightness => {}
+                Section::Brightness => {}
             }
         }
         if !tiles.is_empty() {
@@ -461,4 +514,9 @@ fn power_label(action: PowerAction) -> String {
         PowerAction::Restart => fl!("restart"),
         PowerAction::Shutdown => fl!("shutdown"),
     }
+}
+
+/// Runs an audio command in the background.
+fn audio_task(command: audio::Command) -> Task<cosmic::Action<Message>> {
+    Task::perform(audio::run(command), |()| cosmic::Action::App(Message::Done))
 }

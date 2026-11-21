@@ -9,9 +9,9 @@ Design: `docs/system-mockups`. Licensing rules: `docs/LICENSING.md`.
 | # | Milestone | State | Commit |
 |---|---|---|---|
 | 1 | Scaffold: crate, license, packaging, panel button, page navigation, config | done | d27c5fb |
-| 2 | Power buttons, confirmation with countdown, settings entry points | done | see git log |
-| 3 | Audio: sliders, Output tile, Sound page | next | |
-| 4 | Battery, power profiles, brightness | | |
+| 2 | Power buttons, confirmation with countdown, settings entry points | done | 6c29c50 |
+| 3 | Audio: sliders, Output tile, Sound page, scroll on the panel icon | done | see git log |
+| 4 | Battery, power profiles, brightness | next | |
 | 5 | Bluetooth | | |
 | 6 | Network, airplane mode | | |
 | 7 | Panel icons, alerts, settings page | | |
@@ -55,8 +55,15 @@ Decided by the user (2026-11-21):
   slot keeps its toggle and chevron.
 
 Chosen here (tell me if you want it different):
+- The Output tile's body toggles mute; its chevron opens the Sound page. Scrolling on the
+  panel icon changes the volume in 5 % steps.
 - Log out asks first, like Restart and Shut down. Lock and Suspend act at once.
 - Closing the popup cancels a pending countdown.
+
+## Lockfile
+
+The audio client needs tokio 1.54 and zcheapstr ≥ 1.2, so `Cargo.lock` moves tokio
+1.53.2 → 1.54.1 and zcheapstr 1.1.0 → 1.4.0 for the whole workspace (semver-compatible).
 
 ## Not tested
 

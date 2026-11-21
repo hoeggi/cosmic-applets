@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 mod app;
+mod audio;
 mod config;
 mod i18n;
 mod power;
