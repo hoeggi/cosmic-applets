@@ -22,7 +22,8 @@ for n in [
     "battery-level-100-charged", "power-profile-balanced", "power-profile-performance",
     "power-profile-power-saver", "system-shutdown", "system-reboot", "system-suspend",
     "system-lock-screen", "system-log-out", "input-mouse", "input-keyboard", "phone", "computer",
-    "pan-up", "emblem-ok",
+    "pan-up", "emblem-ok", "media-skip-backward", "media-skip-forward", "media-playback-pause",
+    "media-playback-start", "audio-x-generic",
 ]:
     GLYPHS[n] = theme_icon(n)
 
@@ -42,6 +43,20 @@ def tile(icon_name, name, sub, on=True, more=True):
 
 def tiles(*ts):
     return '<div class="tiles">' + "".join(ts) + "</div>"
+
+
+def player(title, sub, playing=False, art="audio-x-generic", prev=True, nxt=True):
+    """One MPRIS player: art, title and artist, previous / play-pause / next. Clicking the row raises the app."""
+    ctl = (ib("media-skip-backward") if prev else "") + ib("media-playback-pause" if playing else "media-playback-start") + \
+        (ib("media-skip-forward") if nxt else "")
+    return (f'<div class="row mrow"><span class="art">{i(art)}</span><div class="t"><div class="n">{title}</div>'
+            f'<div class="c">{sub}</div></div><div class="r ctl">{ctl}</div></div>')
+
+
+PLAYERS = (DIV
+           + player("Bohemian Rhapsody", "Queen · Spotify", playing=True)
+           + player("Holiday 2025.mkv", "VLC", prev=False, nxt=False)
+           + player("Lecture 07 – Networks.mp4", "VLC", prev=False, nxt=False))
 
 
 def power_row(active=None):
@@ -90,6 +105,7 @@ main_page = (
         tile("audio-headphones", "Output", "WH-1000XM5"),
         tile("airplane-mode", "Airplane", "Off", on=False, more=False),
     )
+    + PLAYERS
     + DIV
     + power_row()
 )
@@ -207,6 +223,7 @@ settings = header("Settings") + DIV + gh("Sections, in this order") + "".join(
         ("display-brightness", "Brightness", True),
         ("network-wireless-signal-excellent", "Network", True),
         ("bluetooth-active", "Bluetooth", True),
+        ("audio-x-generic", "Media controls", True),
         ("system-shutdown", "Power buttons", True),
     ]) + DIV + gh("Panel icons") + "".join(
     f'<div class="row pick">{cb(on)}{i(ic)}<div class="t"><div class="n">{n}</div>' + (f'<div class="c">{sub}</div>' if sub else "") + '</div></div>'
@@ -250,7 +267,7 @@ PANEL = '<section class="wide"><h2>Panel: one button for all five areas</h2><div
 SCREENS = "".join([
     heading("Main popup",
             "Everything everyday fits on one page. Every chevron (battery header and tiles) opens that area's detail page. Bluetooth, Output and Airplane toggle on click; the Network tile only opens its page, and Airplane has no page, so no chevron. The bottom row ends with a button for the COSMIC Settings app, and Applet settings… below it opens this applet's own settings."),
-    screen("m1", "1. Main", "Battery on top, sliders in the middle, tiles for the switchable parts, power buttons at the bottom.", main_page),
+    screen("m1", "1. Main", "Battery on top, sliders in the middle, tiles for the switchable parts, then one row per media player (Spotify, each VLC window, …) with previous / play-pause / next; clicking a row brings that app to the front. The media rows disappear while nothing is playing, as in the other variants. Power buttons at the bottom.", main_page),
     screen("m2", "2. Low battery", "Below 10% the header turns red, and a banner explains what changed automatically.", low),
     screen("m3", "3. Airplane mode, muted", "Off tiles stay in place and only lose their accent colour, so the layout never jumps.", airplane),
     screen("m4", "4. Ethernet + Wi-Fi + VPN", "The Network tile always shows the connection in use: Ethernet, plus the VPN. Wi-Fi on/off lives on the Network page.", both),
@@ -307,6 +324,8 @@ CSS = BASE_CSS + """
 .bars{row-gap:20px}
 .pw{padding:6px 14px 4px}.pb{width:42px}
 .applet{min-height:36px;padding-top:2px}
+.mrow{min-height:48px;padding:4px 12px 4px 16px}.mrow .ctl{gap:0}
+.art{width:36px;height:36px;border-radius:6px;background:var(--comp);display:inline-flex;align-items:center;justify-content:center;flex:none}
 .btn.danger{background:var(--bad);color:var(--onacc)}
 """
 
