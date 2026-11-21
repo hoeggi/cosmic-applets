@@ -14,7 +14,18 @@ Design: `docs/system-mockups`. Licensing rules: `docs/LICENSING.md`.
 | 4 | Battery header and page, power profiles, charge limit, peripherals, brightness | done | 2379add |
 | 5 | Bluetooth tile and page: power, paired devices, scan, pair, connect | done | eb02e54 |
 | 6 | Network tile and page (wired, Wi-Fi, VPN, In use), airplane mode, VPN tile on desktops | done | 8785a2c |
-| 7 | Panel icons, alerts, settings page | done | see git log |
+| 7 | Panel icons, alerts, settings page | done | e857c2e |
+
+Full gate (`fmt --check`, workspace clippy `-D warnings`, workspace tests) passed on
+2026-11-21 at e857c2e: 76 tests, 3 ignored, across all applets.
+
+## Next steps
+
+- Try it in the panel (`make deb` then install, or `make run APPLET=system`) and check every
+  page; nothing has been seen on screen yet.
+- Charge limit through system76-power where UPower lacks it.
+- A Bluetooth pairing agent for PIN and passkey devices.
+- Decide whether the Microphone panel icon is worth a PipeWire query for recording streams.
 
 ## How to run and check
 
