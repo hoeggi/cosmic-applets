@@ -31,6 +31,7 @@ intmap = "3.1.3"
 # Upstream's MPRIS subscription (cosmic-applet-audio) uses these, at the revision cosmic-applets
 # ecb6b61 pins.
 mpris2-zbus = { git = "https://github.com/pop-os/dbus-settings-bindings", rev = "6ccc9fbf034220f0142bc907a7d7513b49aba0e1" }
+reqwest = { workspace = true, features = ["rustls"] }
 url = "2"
 urlencoding = "2.1.3"
 # Upstream's network model (cosmic-applet-network) is built on these.

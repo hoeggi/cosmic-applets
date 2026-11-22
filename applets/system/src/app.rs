@@ -109,6 +109,8 @@ pub enum Message {
     SetDefault(u32),
     BatteryEvent(battery_backend::Event),
     Media(crate::upstream::audio::mpris_subscription::MprisUpdate),
+    /// A player's web cover and app icon, looked up by the adapter.
+    MediaExtras(String, mpris::Extras),
     /// A request for one player, by its bus name.
     MediaRequest(
         String,
@@ -290,7 +292,17 @@ impl cosmic::Application for AppModel {
             Message::ToggleSinkMute => return audio_task(audio::Command::ToggleSinkMute),
             Message::ToggleSourceMute => return audio_task(audio::Command::ToggleSourceMute),
             Message::SetDefault(id) => return audio_task(audio::Command::SetDefault(id)),
-            Message::Media(update) => self.media.update(update),
+            Message::Media(update) => {
+                self.media.update(update);
+                let lookups = self.media.lookups().into_iter().map(|l| {
+                    let id = l.id;
+                    Task::perform(mpris::lookup(l.player, l.previous), move |extras| {
+                        cosmic::Action::App(Message::MediaExtras(id.clone(), extras))
+                    })
+                });
+                return Task::batch(lookups);
+            }
+            Message::MediaExtras(id, extras) => self.media.set_extras(id, extras),
             Message::MediaRequest(id, request) => self.media.request(&id, request),
             Message::BatteryEvent(event) => {
                 self.battery_model.event(event);

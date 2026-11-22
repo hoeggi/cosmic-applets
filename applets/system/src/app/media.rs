@@ -3,7 +3,7 @@
 //! Media controls: one row per running player, between the tiles and the power row.
 
 use super::{AppModel, Message};
-use crate::adapter::media::PlayerRow;
+use crate::adapter::media::{AppIcon, PlayerRow};
 use crate::ui;
 use crate::upstream::audio::mpris_subscription::MprisRequest;
 use cosmic::iced::{Alignment, ContentFit, Length};
@@ -29,12 +29,20 @@ impl AppModel {
 /// Art, title and "artist · app"; the row raises the player, the buttons control it. All three
 /// buttons are always shown; those the player can't use are disabled.
 fn player_row<'a>(row: PlayerRow) -> Element<'a, Message> {
-    let art: Element<'a, Message> = match &row.art {
-        Some(path) => widget::icon(icon::from_path(path.clone()))
+    // A cover, else the application's icon, else the note icon.
+    let art: Element<'a, Message> = match (&row.art, &row.app_icon) {
+        (Some(path), _) => widget::icon(icon::from_path(path.clone()))
             .size(ART as u16)
             .content_fit(ContentFit::Cover)
             .into(),
-        None => widget::container(
+        (None, Some(AppIcon::Path(path))) => widget::icon(icon::from_path(path.clone()))
+            .size(ART as u16)
+            .content_fit(ContentFit::Contain)
+            .into(),
+        (None, Some(AppIcon::Name(name))) => {
+            icon::from_name(name.clone()).size(ART as u16).icon().into()
+        }
+        (None, None) => widget::container(
             icon::from_name("audio-x-generic-symbolic")
                 .size(16)
                 .symbolic(true)
