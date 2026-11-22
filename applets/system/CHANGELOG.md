@@ -4,6 +4,13 @@ All notable changes to `cosmic-applet-system` are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/). Releases are tagged `system-v<version>`.
 
+## [0.2.0] - 2026-11-22
+
+### Added
+- Media rows show covers that players send as a web address, such as Spotify's album art,
+  instead of the note icon. Covers are downloaded once and kept in the user's cache.
+- When a player sends no cover at all, its row shows the application's icon.
+
 ## [0.1.0] - 2026-11-21
 
 ### Added
